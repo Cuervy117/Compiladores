@@ -3,7 +3,7 @@
 #include <vector>
 #include <cctype> // Nos servirá para funciones como isalpha(), isdigit() o isspace()
 
-// Definimos las categorías exactas que pide tu profesor
+// Definimos las categorías exactas que se piden
 enum class TokenType {
     Keyword,     // Para "printf" o "int"
     Identifier,  // Para variables como "$a"
@@ -96,7 +96,6 @@ Token Lexer::getNextToken() {
     }
 
     // 6. Palabras clave (Keywords) e Identificadores (Variables como $a)
-    // Nota: Agregamos '$' a la condición para que acepte tus variables
     if (std::isalpha(c) || c == '$') {
         std::string text = "";
         
