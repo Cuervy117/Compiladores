@@ -1,0 +1,19 @@
+# Compilados C/C++
+*.o
+*.obj
+*.out
+*.exe
+a.out
+build/
+dist/
+*.dSYM/
+
+# Editor / SO
+*.swp
+*~
+.DS_Store
+.idea/
+.vscode/
+
+docs/
+propuestas/
