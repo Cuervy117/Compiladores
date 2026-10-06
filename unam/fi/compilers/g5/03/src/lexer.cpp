@@ -25,6 +25,9 @@ Token Lexer::getNextToken() {
     skipWhitespace(); // Ignoramos los espacios en blanco
     char c = peek();
 
+    // 0. comentarios
+    
+
     // 1. Fin de archivo
     if (c == '\0') {
         return {TokenType::EndOfFile, ""};
@@ -46,7 +49,15 @@ Token Lexer::getNextToken() {
         str += advance(); // Consumimos la primera comilla
 
         while (peek() != '"' && peek() != '\0') {
-            str += advance(); // Guardamos el texto interior
+
+            if (peek() == '\\') { // casos "a\"b" 
+                str += advance();
+                if (peek() != '\0') {
+                    str += advance();
+                }
+            } else {
+                str += advance();
+            }
         }
 
         if (peek() == '"') {
@@ -150,7 +161,7 @@ std::string formatRubric(const std::vector<Token>& tokens) {
         }
     }
 
-    outputSequence += "\n";
+    outputSequence += "\n\n";
     outputSequence += "Total of tokens: " + std::to_string(tokenCount) + "\n";
     return outputSequence;
 }
