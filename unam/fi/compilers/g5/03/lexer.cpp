@@ -1,4 +1,5 @@
 #include "Lexer.hpp"
+#include "TokenTable.hpp"
 
 #include <cctype> // isalpha(), isdigit(), isspace(), isalnum()
 
@@ -29,14 +30,14 @@ Token Lexer::getNextToken() {
         return {TokenType::EndOfFile, ""};
     }
 
-    // 2. Puntuación (paréntesis y punto y coma)
-    if (c == '(' || c == ')' || c == ';') {
+    // 2. Puntuación: siempre un solo carácter, se consulta la tabla
+    if (TokenTable::isPunctuation(c)) {
         return {TokenType::Punctuation, std::string(1, advance())};
     }
 
-    // 3. Operadores (como el signo de igual en $a=10)
-    if (c == '=') {
-        return {TokenType::Operator, std::string(1, advance())};
+    // 3. Operadores: pueden ser de uno o dos caracteres (=, ==, +=, ...)
+    if (TokenTable::isOperatorChar(c)) {
+        return scanOperator();
     }
 
     // 4. Constantes de texto (String literals como "This is an example")
@@ -72,9 +73,8 @@ Token Lexer::getNextToken() {
             text += advance();
         }
 
-        // Verificamos si es una palabra clave reservada
-        if (text == "print" || text == "printf" || text == "int") {
-            return {TokenType::Keyword, text};
+        if (auto keyword = TokenTable::lookupKeyword(text)) {
+            return {*keyword, text};
         }
 
         // Si no es palabra clave, es un identificador
@@ -85,6 +85,27 @@ Token Lexer::getNextToken() {
     return {TokenType::Unknown, std::string(1, advance())};
 }
 
+// Lee una racha de caracteres de operador
+// gana el prefijo más largo que exista en la tabla ("==" antes que "="),
+// y los caracteres sobrantes se devuelven al flujo.
+Token Lexer::scanOperator() {
+    std::string run;
+    while (TokenTable::isOperatorChar(peek())) {
+        run += advance();
+    }
+
+    for (std::size_t len = run.size(); len >= 1; --len) {
+        std::string candidate = run.substr(0, len);
+        if (TokenTable::isOperator(candidate)) {
+            pos -= (run.size() - len); // devolvemos los caracteres sobrantes
+            return {TokenType::Operator, candidate};
+        }
+    }
+
+    // Ningún prefijo es un operador conocido: reportamos solo el primero
+    pos -= (run.size() - 1);
+    return {TokenType::Unknown, std::string(1, run[0])};
+}
 
 std::vector<Token> scan(const std::string& source) {
     Lexer lexer(source);

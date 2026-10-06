@@ -22,6 +22,7 @@ private:
     char peek() const;   // Mira el carácter actual SIN avanzar
     char advance();      // Lee el carácter actual y AVANZA
     void skipWhitespace();
+    Token scanOperator(); // Lee un operador de 1 o 2 caracteres
 };
 
 // ---------------------------------------------------------------------------

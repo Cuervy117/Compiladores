@@ -10,9 +10,9 @@ int main() {
     std::string sourceCode;
     std::getline(std::cin, sourceCode);
 
-    // 2. Toda la lógica y el formato viven en la librería (runLexer).
+    // 2. Toda la lógica y el formato viven en runLexer.
     //    Así el CLI y la web producen exactamente la misma salida.
     std::cout << runLexer(sourceCode);
-
+    
     return 0;
 }
