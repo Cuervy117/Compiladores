@@ -15,5 +15,12 @@ dist/
 .idea/
 .vscode/
 
-docs/
+#docs/
 propuestas/
+
+# Para el webassembly
+build/
+build-wasm/
+web/lexer.js
+web/lexer.wasm
+lexer
