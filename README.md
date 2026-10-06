@@ -71,7 +71,62 @@ The lexer classifies each token into one of the following categories (`enum clas
 * Whitespace and line breaks between tokens are ignored.
 
 ## 5. Context-Free Grammar
---Falta jiji
+
+The grammar models the reading example `printf("text");`. The start symbol is `S`
+(the statement) and the terminals are the literal characters of the language.
+
+```bnf
+S  -> printf ( " T " A ) ;
+A  -> , I A | ε
+T  -> E T | ε
+E  -> F | C
+F  -> %d | %s | %f | %c | %%
+C  -> L | M | O | SP | K
+I  -> L I'
+I' -> L I' | O I' | _ I' | ε
+L  -> a | b | c | ... | z
+M  -> A | B | C | ... | Z
+O  -> 0 | 1 | 2 | ... | 9
+SP -> ' '                     
+K  -> + | - | ' | / | > | < | ! | : | . | , | # | @ | ? | $ | &
+```
+
+* `T` is the format string as a whole: a (possibly empty) sequence of `E`.
+* `E` is either a format specifier `F` or a plain character `C`.
+* `A` is the argument list after the closing quote: empty, or `,identifier` repeated.
+* `I` / `I'` recognize identifiers of the form `[a-z][a-z0-9_]*`.
+
+### Design notes
+
+* **No left recursion.** `T -> E T` and `A -> , I A` are *right* recursive, so a
+  top-down (LL) parser can process them without backtracking.
+* **`%` belongs only to `F`.** The character `%` is deliberately excluded from
+  `K`; otherwise `C` and `F` would both derive `%d`, making the grammar ambiguous
+  (`FIRST(C) ∩ FIRST(F) = { % }`) and breaking LL(1).
+* **`"` is not part of the string body.** Keeping the quote out of `K` preserves
+  the string delimiters, so an embedded `"` cannot close the literal early.
+* **`SP` covers spaces.** Without a space rule the grammar could not derive
+  `printf("This is an example");`, which is Test 1 in this report.
+* **`\n` is an escape**, not a format specifier, so it is treated as a plain
+  character instead of being listed inside `F`.
+
+### Example derivation (leftmost)
+
+Derivation of `printf("%d",x);`:
+
+```text
+S
+=> printf ( " T " A ) ;          (S)
+=> printf ( " E T " A ) ;        (T -> E T)
+=> printf ( " F T " A ) ;        (E -> F)
+=> printf ( " %d T " A ) ;       (F -> %d)
+=> printf ( " %d " A ) ;         (T -> ε)
+=> printf ( " %d " , I A ) ;     (A -> , I A)
+=> printf ( " %d " , L I' A ) ;  (I -> L I')
+=> printf ( " %d " , x I' A ) ;  (L -> x)
+=> printf ( " %d " , x A ) ;     (I' -> ε)
+=> printf ( " %d " , x ) ;       (A -> ε)
+```
 
 ## 6. Implementation
 ### 6.1 Scanning flow
