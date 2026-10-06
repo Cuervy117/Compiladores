@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lexer C - UNAM FI Compiladores G5</title>
+  
+</head>
+<body>
+<main>
+  <h1>Analizador léxico de C</h1>
+  <p class="sub">UNAM FI · Compiladores G5. El análisis corre en tu navegador (WebAssembly): el archivo no se sube a ningún servidor.</p>
+
+  <div id="drop">
+    <div class="row">
+      <input type="file" id="file" accept=".c,.h,.txt,text/plain">
+      <span id="status">Cargando módulo…</span>
+    </div>
+    <textarea id="source" spellcheck="false"
+      placeholder="Escribe código, pega texto o arrastra un archivo aquí.">printf("This is an example");
+int a = 10;</textarea>
+  </div>
+
+  <div class="row">
+    <button id="run" disabled>Analizar</button>
+    <button id="clear" class="secondary">Limpiar</button>
+    <label class="opt"><input type="radio" name="mode" value="table" checked> Tabla</label>
+    <label class="opt"><input type="radio" name="mode" value="rubric"> Formato rúbrica</label>
+  </div>
+
+  <h2>Resultado</h2>
+  <pre id="output" aria-live="polite"></pre>
+</main>
+
+<script src="lexer.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
