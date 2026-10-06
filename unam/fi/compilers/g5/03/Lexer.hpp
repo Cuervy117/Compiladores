@@ -36,5 +36,9 @@ std::vector<Token> scan(const std::string& source);
 // Genera la salida con el formato exacto de la rúbrica a partir de una lista.
 std::string formatRubric(const std::vector<Token>& tokens);
 
+// Genera una tabla legible (numero, lexema y tipo) para inspeccionar la salida.
+// Incluye los tokens Unknown, a diferencia de formatRubric.
+std::string formatTable(const std::vector<Token>& tokens);
+
 // Atajo: scan() + formatRubric().
 std::string runLexer(const std::string& source);

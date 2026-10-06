@@ -137,6 +137,68 @@ std::string formatRubric(const std::vector<Token>& tokens) {
     return outputSequence;
 }
 
+// Genera una tabla más explicita
+std::string formatTable(const std::vector<Token>& tokens) {
+    std::vector<std::string> labels;
+    labels.reserve(tokens.size());
+
+    std::size_t lexemeWidth = std::string("LEXEMA").size();
+    std::size_t typeWidth = std::string("TIPO").size();
+    std::size_t unknown = 0;
+
+    for (const Token& token : tokens) {
+        std::string label = (token.type == TokenType::Unknown)
+                                ? "unknown"
+                                : getCategoryName(token.type);
+        if (token.type == TokenType::Unknown) ++unknown;
+        if (token.value.size() > lexemeWidth) lexemeWidth = token.value.size();
+        if (label.size() > typeWidth) typeWidth = label.size();
+        labels.push_back(label);
+    }
+
+    const std::string numHeader = "#";
+    std::size_t numWidth = std::to_string(tokens.size()).size();
+    if (numWidth < numHeader.size()) numWidth = numHeader.size();
+
+    auto pad = [](const std::string& s, std::size_t width) {
+        return s + std::string(width > s.size() ? width - s.size() : 0, ' ');
+    };
+
+    std::string out;
+    out += pad(numHeader, numWidth) + "  " + pad("LEXEMA", lexemeWidth) + "  TIPO\n";
+    out += std::string(numWidth, '-') + "  " + std::string(lexemeWidth, '-') + "  "
+         + std::string(typeWidth, '-') + "\n";
+
+    for (std::size_t i = 0; i < tokens.size(); ++i) {
+        out += pad(std::to_string(i + 1), numWidth) + "  "
+             + pad(tokens[i].value, lexemeWidth) + "  " + labels[i] + "\n";
+    }
+
+    out += "\nTotal of tokens: " + std::to_string(tokens.size()) + "\n";
+    if (unknown > 0) {
+        out += "Aviso: " + std::to_string(unknown) + " caracter(es) no reconocido(s)\n";
+    }
+
+    // Conteo por categoria: ayuda a verificar de un vistazo que nada
+    // se clasifico en el grupo equivocado.
+    const std::size_t CATEGORIES = 5; // Keyword..Punctuation (orden del enum)
+    std::size_t counts[CATEGORIES] = {0, 0, 0, 0, 0};
+    for (const Token& token : tokens) {
+        const int index = static_cast<int>(token.type);
+        if (index >= 0 && index < static_cast<int>(CATEGORIES)) {
+            ++counts[index];
+        }
+    }
+
+    out += "\nConteo por categoria:\n";
+    for (std::size_t i = 0; i < CATEGORIES; ++i) {
+        out += "  " + pad(getCategoryName(static_cast<TokenType>(i)), 12)
+             + std::to_string(counts[i]) + "\n";
+    }
+
+    return out;
+}
+
 std::string runLexer(const std::string& source) {
     return formatRubric(scan(source));
 }
