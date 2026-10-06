@@ -1,0 +1,26 @@
+# Compilados C/C++
+*.o
+*.obj
+*.out
+*.exe
+a.out
+build/
+dist/
+*.dSYM/
+
+# Editor / SO
+*.swp
+*~
+.DS_Store
+.idea/
+.vscode/
+
+#docs/
+propuestas/
+
+# Para el webassembly
+build/
+build-wasm/
+web/lexer.js
+web/lexer.wasm
+lexer
