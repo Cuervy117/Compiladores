@@ -61,6 +61,24 @@ Token Lexer::getNextToken() {
         while (std::isdigit(peek())) {
             num += advance();
         }
+
+        if(peek() == '.') { // Parte decimal
+            num += advance(); // Consumimos el punto
+            while (std::isdigit(peek())) {
+                num += advance();
+            }
+        }
+
+        if(peek() == 'e' || peek() == 'E') { // Parte exponencial
+            num += advance(); // Consumimos la 'e' o 'E'
+            if(peek() == '+' || peek() == '-') { // Signo opcional
+                num += advance();
+            }
+            while (std::isdigit(peek())) {
+                num += advance();
+            }
+        }
+
         return {TokenType::Constant, num};
     }
 
