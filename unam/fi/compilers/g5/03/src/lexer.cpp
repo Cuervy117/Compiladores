@@ -66,28 +66,38 @@ Token Lexer::getNextToken() {
         return {TokenType::Constant, str};
     }
 
-    // 5. Constantes numéricas (como el 10)
+    // 5. Constantes numéricas (10, 0.23, 1e-5, 0.23f, ...)
     if (std::isdigit(c)) {
         std::string num = "";
+        bool isFloat = false;
+
         while (std::isdigit(peek())) {
             num += advance();
         }
 
-        if(peek() == '.') { // Parte decimal
+        if (peek() == '.') { // Parte decimal
+            isFloat = true;
             num += advance(); // Consumimos el punto
             while (std::isdigit(peek())) {
                 num += advance();
             }
         }
 
-        if(peek() == 'e' || peek() == 'E') { // Parte exponencial
+        if (peek() == 'e' || peek() == 'E') { // Parte exponencial
+            isFloat = true;
             num += advance(); // Consumimos la 'e' o 'E'
-            if(peek() == '+' || peek() == '-') { // Signo opcional
+            if (peek() == '+' || peek() == '-') { // Signo opcional
                 num += advance();
             }
             while (std::isdigit(peek())) {
                 num += advance();
             }
+        }
+
+        // Sufijo de flotante: 0.23f, 1.5F, 2.0L
+        if (isFloat && (peek() == 'f' || peek() == 'F' ||
+                        peek() == 'l' || peek() == 'L')) {
+            num += advance();
         }
 
         return {TokenType::Constant, num};
