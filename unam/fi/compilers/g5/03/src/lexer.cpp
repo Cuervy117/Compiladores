@@ -38,28 +38,6 @@ Token Lexer::getNextToken() {
         return {TokenType::EndOfFile, ""};
     }
 
-    // 1.5 Constantes numéricas que empiezan con punto (.123, .5e-3)
-    if (c == '.' && std::isdigit(peekNext())) {
-        std::string num = "";
-        num += advance(); // Consumimos el punto
-
-        while (std::isdigit(peek())) {
-            num += advance();
-        }
-
-        if (peek() == 'e' || peek() == 'E') { // Parte exponencial
-            num += advance();
-            if (peek() == '+' || peek() == '-') {
-                num += advance();
-            }
-            while (std::isdigit(peek())) {
-                num += advance();
-            }
-        }
-
-        return {TokenType::Constant, num};
-    }
-
     // 2. Puntuación: siempre un solo carácter, se consulta la tabla
     if (TokenTable::isPunctuation(c)) {
         return {TokenType::Punctuation, std::string(1, advance())};
@@ -91,10 +69,30 @@ Token Lexer::getNextToken() {
             str += advance(); // Consumimos la última comilla
         }
         return {TokenType::Constant, str};
+    } else if (c == '\'') { // Constantes de carácter como 'a'
+        std::string str = "";
+        str += advance(); // Consumimos la primera comilla simple
+
+        while (peek() != '\'' && peek() != '\0') {
+
+            if (peek() == '\\') { // casos 'a\'b' 
+                str += advance();
+                if (peek() != '\0') {
+                    str += advance();
+                }
+            } else {
+                str += advance();
+            }
+        }
+
+        if (peek() == '\'') {
+            str += advance(); // Consumimos la última comilla simple
+        }
+        return {TokenType::Constant, str};
     }
 
     // 5. Constantes numéricas (10, 0.23, 1e-5, 0.23f, ...)
-    if (std::isdigit(c)) {
+    if (std::isdigit(c) || (c == '.' && std::isdigit(peekNext()))) {
         std::string num = "";
         bool isFloat = false;
 
@@ -135,7 +133,7 @@ Token Lexer::getNextToken() {
         std::string text = "";
 
         // Seguimos leyendo mientras sean letras, números o el símbolo $
-        while (std::isalnum(peek()) || peek() == '$') {
+        while (std::isalnum(peek()) || peek() == '$' || peek() == '_') {
             text += advance();
         }
 
