@@ -23,6 +23,7 @@ private:
     char advance();      // Lee el carácter actual y AVANZA
     void skipWhitespace();
     Token scanOperator(); // Lee un operador de 1 o 2 caracteres
+    char peekNext() const; //Ayuda para aceptar floats sin 0
 };
 
 // ---------------------------------------------------------------------------
