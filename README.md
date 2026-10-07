@@ -17,8 +17,9 @@
 4. [Token Definitions](#4-token-definitions)
 5. [Context-Free Grammar](#5-context-free-grammar)
 6. [Implementation](#6-implementation)
-7. [Tests and Results](#8-tests-and-results)
-8. [References](#9-references)
+8. [How to Run It](#7-how-to-run-it)
+8. [Tests and Results](#8-tests-and-results)
+9. [References](#9-references)
 
 ---
 
@@ -147,7 +148,23 @@ S
 | operatorChars() | Builds the set of characters that can form an operator, derived from the operator table. |
 | punctuationChars() | Returns the string of supported punctuation characters. |
 
-## 7. Tests and Results
+### 7. How to Run It
+### Web version (WebAssembly)
+
+The lexer can also be used directly from the browser, with nothing to install:
+
+**https://cuervy117.github.io/Compiladores/**
+
+The page runs the lexer compiled to WebAssembly (WASM), same lexer core as the command-line version, compiled with Emscripten, so the analysis runs in the browser itself.
+
+How to use it:
+
+1. Open the link above.
+2. Type or paste the code to analyze or upload a file in the input area.
+3. Click "Analizar"
+4. The page shows the token table (lexeme and type), the total number of tokens, and the count per category, the same output as the command-line version.
+
+## 8. Tests and Results
 
 ### Test 1: `printf("This is an example");`
 
@@ -160,7 +177,22 @@ printf("This is an example");
 **Program output:**
 
 ```text
---
+#  LEXEMA                TIPO
+-  --------------------  -----------
+1  printf                keyword
+2  (                     punctuation
+3  "This is an example"  constant
+4  )                     punctuation
+5  ;                     punctuation
+
+Total of tokens: 5
+
+Conteo por categoria:
+  keyword      1
+  identifier   0
+  operator     0
+  constant     1
+  punctuation  3
 ```
 
 ### Test 2: `int a = 10;`
@@ -174,10 +206,25 @@ int a = 10;
 **Program output:**
 
 ```text
---
+#  LEXEMA  TIPO
+-  ------  -----------
+1  int     keyword
+2  a       identifier
+3  =       operator
+4  10      constant
+5  ;       punctuation
+
+Total of tokens: 5
+
+Conteo por categoria:
+  keyword      1
+  identifier   1
+  operator     1
+  constant     1
+  punctuation  1
 ```
 
-## 8. References
+## 9. References
 
 * Class notes and theoretical sessions of the Compilers course, Facultad de Ingeniería, UNAM.
 
