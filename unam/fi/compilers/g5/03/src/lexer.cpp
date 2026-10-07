@@ -21,6 +21,11 @@ void Lexer::skipWhitespace() {
     }
 }
 
+char Lexer::peekNext() const {
+    if (pos + 1 >= source.length()) return '\0';
+    return source[pos + 1];
+}
+
 Token Lexer::getNextToken() {
     skipWhitespace(); // Ignoramos los espacios en blanco
     char c = peek();
@@ -31,6 +36,28 @@ Token Lexer::getNextToken() {
     // 1. Fin de archivo
     if (c == '\0') {
         return {TokenType::EndOfFile, ""};
+    }
+
+    // 1.5 Constantes numéricas que empiezan con punto (.123, .5e-3)
+    if (c == '.' && std::isdigit(peekNext())) {
+        std::string num = "";
+        num += advance(); // Consumimos el punto
+
+        while (std::isdigit(peek())) {
+            num += advance();
+        }
+
+        if (peek() == 'e' || peek() == 'E') { // Parte exponencial
+            num += advance();
+            if (peek() == '+' || peek() == '-') {
+                num += advance();
+            }
+            while (std::isdigit(peek())) {
+                num += advance();
+            }
+        }
+
+        return {TokenType::Constant, num};
     }
 
     // 2. Puntuación: siempre un solo carácter, se consulta la tabla
