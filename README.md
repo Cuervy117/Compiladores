@@ -38,16 +38,25 @@ For the implementation of this lexer, we use the C++ programming language along 
 ```text
 Compiladores/
 
+├── docs
 ├── .gitignore
 ├── README.md
 ├── unam/fi/compilers/g5/03
-    ├── Lexer.hpp
-    ├── Token.cpp
-    ├── Token.hpp
-    ├── TokenTable.cpp
-    ├── TokenTable.hpp
-    ├── lexer.cpp
-    ├── main.cpp
+    ├── examples
+        ├── crlf.c
+        ├── ejemplo1.c
+        ├──  example_03.c
+    ├── src
+        ├── Lexer.hpp
+        ├── Token.cpp
+        ├── Token.hpp
+        ├── TokenTable.cpp
+        ├── TokenTable.hpp
+        ├── lexer.cpp
+        ├── main.cpp
+    ├── wasm
+        ├── build_wasm.sh
+        ├── wasm_buildings.cpp
 ```
 
 ## 4. Token Definitions
