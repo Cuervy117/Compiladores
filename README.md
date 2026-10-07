@@ -5,10 +5,9 @@
 | **University** | Universidad Nacional Autónoma de México (UNAM)                                                                                                                                                   |
 | **Faculty**    | Facultad de Ingeniería (Faculty of Engineering)                                                                                                                                                  |
 | **Course**     | Compilers, Group 5                                                                                                                                                                               |
-| **Team**       | 2                                                                                                                                                                                                |
+| **Team**       | 3                                                                                                                                                                                                |
 | **Members**    | Díaz Antúnez David - 424104230<br>Galicia Rodríguez Sofia - 424040127<br>López López Carlos Daniel - 321228631<br>López Morales Fernando Samuel - 321172974<br>Quezada Olivares Emir - 321148836 |
-| **Due date**   | October 6th, 2026                                                                                                                                                                                |
-| **Repository** | https://github.com/Cuervy117/Compiladores                                                                                                                                                        |
+| **Due date**   | October 6th, 2026                                               |
 
 ## Table of Contents
 
