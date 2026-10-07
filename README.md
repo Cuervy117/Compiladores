@@ -243,5 +243,7 @@ Conteo por categoria:
 ## 9. References
 
 * Class notes and theoretical sessions of the Compilers course, Facultad de Ingeniería, UNAM.
+* [C++ documentation](https://learn.microsoft.com/es-es/cpp/overview/visual-cpp-in-visual-studio?view=msvc-170)
+* [WebAssembly documentation](https://developer.mozilla.org/es/docs/WebAssembly)
 
 
