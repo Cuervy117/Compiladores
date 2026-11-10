@@ -12,7 +12,9 @@ char Lexer::peek() const {
 
 char Lexer::advance() {
     if (pos >= source.length()) return '\0';
-    return source[pos++];
+    char c = source[pos++];
+    if (c == '\n') ++line;
+    return c;
 }
 
 void Lexer::skipWhitespace() {
@@ -54,7 +56,17 @@ char Lexer::peekNext() const {
     return source[pos + 1];
 }
 
+// Primero saltamos espacios para que la línea guardada sea la del token
+// y no la de un comentario o salto de línea anterior.
 Token Lexer::getNextToken() {
+    skipWhitespace();
+    const int startLine = line;
+    Token token = readToken();
+    token.line = startLine;
+    return token;
+}
+
+Token Lexer::readToken() {
     skipWhitespace(); // Ignoramos los espacios en blanco
     char c = peek();
 

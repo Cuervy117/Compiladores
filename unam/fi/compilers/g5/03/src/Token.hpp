@@ -17,6 +17,7 @@ enum class TokenType {
 struct Token {
     TokenType type;
     std::string value;
+    int line = 0; // Línea donde empieza el token (el parser la usa en los errores)
 };
 
 // Traduce el tipo de token a la etiqueta de salida ("keyword", "identifier", ...).
