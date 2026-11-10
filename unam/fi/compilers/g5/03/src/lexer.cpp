@@ -16,8 +16,36 @@ char Lexer::advance() {
 }
 
 void Lexer::skipWhitespace() {
-    while (std::isspace(peek())) {
-        advance();
+    while (true) {
+        // Espacios en blanco
+        while (std::isspace(static_cast<unsigned char>(peek()))) {
+            advance();
+        }
+
+        // Comentario de línea: // ... hasta el salto de línea
+        if (peek() == '/' && peekNext() == '/') {
+            while (peek() != '\n' && peek() != '\0') {
+                advance();
+            }
+            continue; // volvemos a revisar espacios y más comentarios
+        }
+
+        // Comentario de bloque: /* ... */
+        if (peek() == '/' && peekNext() == '*') {
+            advance(); // '/'
+            advance(); // '*'
+            while (peek() != '\0' && !(peek() == '*' && peekNext() == '/')) {
+                advance();
+            }
+            if (peek() != '\0') {
+                advance(); // '*'
+                advance(); // '/'
+            }
+            // Si llegamos a '\0', el comentario no se cerró: se ignora hasta el final
+            continue;
+        }
+
+        break; // ni espacio ni comentario: terminamos
     }
 }
 
