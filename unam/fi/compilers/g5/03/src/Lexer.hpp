@@ -18,7 +18,9 @@ public:
 private:
     std::string source;  // Código completo a analizar
     std::size_t pos = 0; // Cursor: en qué posición vamos
+    int line = 1;        // Línea actual, se incrementa en advance() con cada '\n'
 
+    Token readToken();   // Lee el token sin preocuparse por la línea
     char peek() const;   // Mira el carácter actual SIN avanzar
     char advance();      // Lee el carácter actual y AVANZA
     void skipWhitespace();
