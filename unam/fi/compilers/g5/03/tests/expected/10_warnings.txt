@@ -1,0 +1,4 @@
+Parsing Success!
+SDT Verified!
+  warning in line 2: initialization of 'truncated': implicit conversion from double to int discards the fractional part
+  warning in line 5: initialization of 'half': implicit conversion from double to int discards the fractional part

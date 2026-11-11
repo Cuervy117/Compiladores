@@ -1,0 +1,4 @@
+Parsing Success!
+SDT error...
+  error in line 2: 'y' was not declared
+  error in line 3: redeclaration of 'x' (first declared in line 1)

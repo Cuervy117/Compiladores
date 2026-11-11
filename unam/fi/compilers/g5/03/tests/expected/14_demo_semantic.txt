@@ -1,0 +1,4 @@
+Parsing Success!
+SDT error...
+  error in line 5: argument 1 of 'square': incompatible types, cannot convert char* to int
+  error in line 6: '%d' expects int but argument 2 of printf has type float

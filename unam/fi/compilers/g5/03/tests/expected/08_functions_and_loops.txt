@@ -1,0 +1,8 @@
+Parsing Success!
+SDT error...
+  error in line 3: 'return' with a value in a void function
+  error in line 7: 'return' without a value in a function returning int
+  error in line 10: 'break' outside of a loop
+  error in line 11: function 'sum' expects 2 argument(s), got 1
+  error in line 12: initialization of 'w': a void value cannot be used
+  error in line 13: 'return' outside of a function

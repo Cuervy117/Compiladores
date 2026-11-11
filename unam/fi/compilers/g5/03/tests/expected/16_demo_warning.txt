@@ -1,0 +1,3 @@
+Parsing Success!
+SDT Verified!
+  warning in line 2: initialization of 'pesos': implicit conversion from double to int discards the fractional part

@@ -1,0 +1,8 @@
+Parsing Success!
+SDT error...
+  error in line 3: argument 2 of scanf must be an address (&variable) for '%d'
+  error in line 4: '%f' expects float* but argument 2 of scanf has type int*
+  error in line 5: '%lf' expects double* but argument 2 of scanf has type float*
+  error in line 7: unknown format specifier '%q' in printf
+  error in line 7: printf format has 0 specifier(s) but 1 argument(s) were given
+  error in line 8: the first argument of printf must be a string literal
