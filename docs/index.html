@@ -1,38 +1,147 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Lexer C - UNAM FI Compiladores G5</title>
-  
+  <title>C-Through · C Compiler (Team 03)</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<header>
+  <h1>C-Through <small>lexer · LL(1) parser · SDT</small></h1>
+  <p class="sub">UNAM FI · Compilers, Group 5 · Team 03 &nbsp;|&nbsp; <span id="status">Loading WebAssembly…</span></p>
+</header>
+
 <main>
-  <h1>Analizador léxico de C</h1>
-  <p class="sub">UNAM FI · Compiladores G5.03</p>
-
-  <div id="drop">
-    <div class="row">
+  <section id="input">
+    <h2>1. Source code</h2>
+    <div class="toolbar">
       <input type="file" id="file" accept=".c,.h,.txt,text/plain">
-      <span id="status">Cargando módulo…</span>
+      <label>Example:
+        <select id="example-select"><option value="">(choose one)</option></select>
+      </label>
     </div>
-    <textarea id="source" spellcheck="false"
-      placeholder="Escribe código, pega texto o arrastra un archivo aquí.">printf("This is an example");
-int a = 10;</textarea>
-  </div>
+    <div id="drop">
+      <textarea id="source" spellcheck="false" rows="12"
+        placeholder="Write C code here, paste it, or drop a .c file on this box."></textarea>
+    </div>
+    <div class="toolbar">
+      <button id="run" disabled>Compile</button>
+      <button id="clear" class="secondary">Clear</button>
+      <span class="hint">Ctrl + Enter also compiles.</span>
+    </div>
+  </section>
 
-  <div class="row">
-    <button id="run" disabled>Analizar</button>
-    <button id="clear" class="secondary">Limpiar</button>
-    <label class="opt"><input type="radio" name="mode" value="table" checked> Tabla</label>
-    <label class="opt"><input type="radio" name="mode" value="rubric"> Formato rúbrica</label>
-  </div>
+  <section id="result" hidden>
+    <h2>Result</h2>
+    <div class="stages">
+      <div class="stage" id="stage-lexer"><b>Lexer</b><span>-</span></div>
+      <div class="stage" id="stage-parser"><b>Parser</b><span>-</span></div>
+      <div class="stage" id="stage-sdt"><b>SDT</b><span>-</span></div>
+    </div>
+    <pre id="summary"></pre>
+    <ul id="messages"></ul>
+  </section>
 
-  <h2>Resultado</h2>
-  <pre id="output" aria-live="polite"></pre>
+  <section id="lexical" hidden>
+    <h2>2. Lexical analysis</h2>
+    <div class="two-cols">
+      <div class="scroll tokens">
+        <table id="token-table">
+          <thead><tr><th>#</th><th>Lexeme</th><th>Category</th><th>Line</th><th>Terminal</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div>
+        <p><b>Total of tokens:</b> <span id="token-total">0</span></p>
+        <table id="count-table">
+          <thead><tr><th>Category</th><th>Count</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <p class="note">The terminal column is what the parser actually reads: identifiers become
+          <code>id</code> and constants are split into <code>int_const</code>, <code>float_const</code>,
+          <code>char_const</code> and <code>string_lit</code>.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="syntax" hidden>
+    <h2>3. Syntax analysis: parse tree</h2>
+    <div class="toolbar">
+      <label><input type="checkbox" id="compact" checked> Compact tree (hide ε branches)</label>
+      <button class="small secondary" id="zoom-out" title="Zoom out">−</button>
+      <button class="small secondary" id="zoom-in" title="Zoom in">+</button>
+      <button class="small secondary" id="zoom-fit">Fit</button>
+      <button class="small" id="download-svg">Download SVG</button>
+      <button class="small" id="download-png">Download PNG</button>
+      <button class="small secondary" id="copy-mermaid">Copy Mermaid code</button>
+    </div>
+    <div id="tree-box" class="scroll"><p class="note">The tree appears here.</p></div>
+    <p class="note">Blue boxes are nonterminals, yellow ones are tokens. If the parser fails, the red node is where it
+      stopped and the dashed nodes were never expanded.</p>
+    <details id="trace-details">
+      <summary>Parsing steps (stack, input and action of the LL(1) parser)</summary>
+      <div class="scroll trace"><table id="trace-table">
+        <thead><tr><th>#</th><th>Stack</th><th>Input</th><th>Action</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+      <p class="note" id="trace-note"></p>
+    </details>
+  </section>
+
+  <section id="semantic" hidden>
+    <h2>4. Semantic analysis: symbol table</h2>
+    <p class="note">Every name that the SDT declared, with the scope where it lived. Inner scopes
+      (functions, blocks, <code>for</code>) are indented.</p>
+    <div class="scroll">
+      <table id="symbol-table">
+        <thead><tr><th>Name</th><th>Kind</th><th>Type</th><th>Parameters</th><th>Line</th><th>Scope</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="grammar">
+    <h2>5. Grammar, FIRST / FOLLOW and LL(1) table</h2>
+    <p class="note">These do not depend on the input: the program computes them from the grammar when it starts.</p>
+    <details>
+      <summary>Productions</summary>
+      <div class="scroll"><table id="production-table"><tbody></tbody></table></div>
+    </details>
+    <details>
+      <summary>FIRST and FOLLOW sets</summary>
+      <div class="scroll"><table id="first-follow-table">
+        <thead><tr><th>Nonterminal</th><th>FIRST</th><th>FOLLOW</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </details>
+    <details>
+      <summary>LL(1) parsing table M[A, a]</summary>
+      <p class="note">Each cell holds the number of the production to apply. Empty cells are syntax errors.
+        Hover a cell to see the production. <span id="conflict-note"></span></p>
+      <div class="scroll ll1"><table id="ll1-table"></table></div>
+    </details>
+  </section>
+
+  <section id="samples">
+    <h2>Test programs</h2>
+    <p class="note">Short programs to try every kind of output. Use <i>Load</i> to put one in the editor
+      or <i>Copy</i> to paste it somewhere else.</p>
+    <div id="sample-list"></div>
+  </section>
 </main>
 
-<script src="lexer.js"></script>
+<footer>
+  Team 03: Díaz Antúnez David, Galicia Rodríguez Sofía, López López Carlos Daniel,
+  López Morales Fernando Samuel, Quezada Olivares Emir.
+  The compiler runs in your browser (C++ compiled to WebAssembly); nothing is sent to a server.
+</footer>
+
+<div id="toasts" aria-live="polite"></div>
+
+<script src="vendor/mermaid.min.js"></script>
+<script src="examples.js"></script>
+<script src="compiler.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
