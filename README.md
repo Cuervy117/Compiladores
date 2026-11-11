@@ -84,7 +84,7 @@ Compiladores/
 │   └── vendor/mermaid.min.js    Mermaid, so the page also works offline
 └── unam/fi/compilers/g5/03/
     ├── Makefile
-    ├── design/gramatica_sdt.*   grammar + complete SDT (LaTeX and PDF)
+    ├── design/gramatica_LL1.*   grammar + complete SDT (LaTeX and PDF)
     ├── src/
     │   ├── Token.*, TokenTable.*, Lexer.hpp, lexer.cpp   lexer (first deliverable)
     │   ├── main.cpp             lexer CLI
@@ -729,7 +729,7 @@ These are the rules that the SDT checks:
 | R15 | `print` needs at least one argument and no `void` values | `print();` |
 | W1 | A floating value stored in an integer is allowed, but gives a **warning** | `int t = 3.7;` |
 
-The complete definition, with the rules of all 110 productions, is in [`unam/fi/compilers/g5/03/design/gramatica_sdt.pdf`](unam/fi/compilers/g5/03/design/gramatica_sdt.pdf) (in Spanish, it is the document we used inside the team).
+The complete definition, with the rules of all 110 productions, is in [`unam/fi/compilers/g5/03/design/gramatica_LL1.pdf`](unam/fi/compilers/g5/03/design/gramatica_LL1.pdf) (in Spanish, it is the document we used inside the team).
 
 ### 6.4 Symbol table
 
