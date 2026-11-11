@@ -1,0 +1,3 @@
+# Los scripts y el Makefile siempre con LF (bash y make fallan con CRLF)
+*.sh     text eol=lf
+Makefile text eol=lf

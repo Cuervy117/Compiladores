@@ -12,18 +12,66 @@ char Lexer::peek() const {
 
 char Lexer::advance() {
     if (pos >= source.length()) return '\0';
-    return source[pos++];
+    char c = source[pos++];
+    if (c == '\n') ++line;
+    return c;
 }
 
 void Lexer::skipWhitespace() {
-    while (std::isspace(peek())) {
-        advance();
+    while (true) {
+        // Espacios en blanco
+        while (std::isspace(static_cast<unsigned char>(peek()))) {
+            advance();
+        }
+
+        // Comentario de línea: // ... hasta el salto de línea
+        if (peek() == '/' && peekNext() == '/') {
+            while (peek() != '\n' && peek() != '\0') {
+                advance();
+            }
+            continue; // volvemos a revisar espacios y más comentarios
+        }
+
+        // Comentario de bloque: /* ... */
+        if (peek() == '/' && peekNext() == '*') {
+            advance(); // '/'
+            advance(); // '*'
+            while (peek() != '\0' && !(peek() == '*' && peekNext() == '/')) {
+                advance();
+            }
+            if (peek() != '\0') {
+                advance(); // '*'
+                advance(); // '/'
+            }
+            // Si llegamos a '\0', el comentario no se cerró: se ignora hasta el final
+            continue;
+        }
+
+        break; // ni espacio ni comentario: terminamos
     }
 }
 
+char Lexer::peekNext() const {
+    if (pos + 1 >= source.length()) return '\0';
+    return source[pos + 1];
+}
+
+// Primero saltamos espacios para que la línea guardada sea la del token
+// y no la de un comentario o salto de línea anterior.
 Token Lexer::getNextToken() {
+    skipWhitespace();
+    const int startLine = line;
+    Token token = readToken();
+    token.line = startLine;
+    return token;
+}
+
+Token Lexer::readToken() {
     skipWhitespace(); // Ignoramos los espacios en blanco
     char c = peek();
+
+    // 0. comentarios
+    
 
     // 1. Fin de archivo
     if (c == '\0') {
@@ -46,21 +94,77 @@ Token Lexer::getNextToken() {
         str += advance(); // Consumimos la primera comilla
 
         while (peek() != '"' && peek() != '\0') {
-            str += advance(); // Guardamos el texto interior
+
+            if (peek() == '\\') { // casos "a\"b" 
+                str += advance();
+                if (peek() != '\0') {
+                    str += advance();
+                }
+            } else {
+                str += advance();
+            }
         }
 
         if (peek() == '"') {
             str += advance(); // Consumimos la última comilla
         }
         return {TokenType::Constant, str};
+    } else if (c == '\'') { // Constantes de carácter como 'a'
+        std::string str = "";
+        str += advance(); // Consumimos la primera comilla simple
+
+        while (peek() != '\'' && peek() != '\0') {
+
+            if (peek() == '\\') { // casos 'a\'b' 
+                str += advance();
+                if (peek() != '\0') {
+                    str += advance();
+                }
+            } else {
+                str += advance();
+            }
+        }
+
+        if (peek() == '\'') {
+            str += advance(); // Consumimos la última comilla simple
+        }
+        return {TokenType::Constant, str};
     }
 
-    // 5. Constantes numéricas (como el 10)
-    if (std::isdigit(c)) {
+    // 5. Constantes numéricas (10, 0.23, 1e-5, 0.23f, ...)
+    if (std::isdigit(c) || (c == '.' && std::isdigit(peekNext()))) {
         std::string num = "";
+        bool isFloat = false;
+
         while (std::isdigit(peek())) {
             num += advance();
         }
+
+        if (peek() == '.') { // Parte decimal
+            isFloat = true;
+            num += advance(); // Consumimos el punto
+            while (std::isdigit(peek())) {
+                num += advance();
+            }
+        }
+
+        if (peek() == 'e' || peek() == 'E') { // Parte exponencial
+            isFloat = true;
+            num += advance(); // Consumimos la 'e' o 'E'
+            if (peek() == '+' || peek() == '-') { // Signo opcional
+                num += advance();
+            }
+            while (std::isdigit(peek())) {
+                num += advance();
+            }
+        }
+
+        // Sufijo de flotante: 0.23f, 1.5F, 2.0L
+        if (isFloat && (peek() == 'f' || peek() == 'F' ||
+                        peek() == 'l' || peek() == 'L')) {
+            num += advance();
+        }
+
         return {TokenType::Constant, num};
     }
 
@@ -69,7 +173,7 @@ Token Lexer::getNextToken() {
         std::string text = "";
 
         // Seguimos leyendo mientras sean letras, números o el símbolo $
-        while (std::isalnum(peek()) || peek() == '$') {
+        while (std::isalnum(peek()) || peek() == '$' || peek() == '_') {
             text += advance();
         }
 
@@ -132,7 +236,7 @@ std::string formatRubric(const std::vector<Token>& tokens) {
         }
     }
 
-    outputSequence += "\n";
+    outputSequence += "\n\n";
     outputSequence += "Total of tokens: " + std::to_string(tokenCount) + "\n";
     return outputSequence;
 }
