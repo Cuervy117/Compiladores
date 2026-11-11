@@ -1,0 +1,650 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[spanish,es-noshorthands,es-tabla]{babel}
+\usepackage[a4paper,margin=2cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{array,booktabs,longtable,tabularx}
+\usepackage[table]{xcolor}
+\usepackage{enumitem}
+\usepackage{forest}
+\usepackage{hyperref}
+
+\definecolor{tcolor}{HTML}{8A4B08}
+\definecolor{ntcolor}{HTML}{1F3A68}
+\hypersetup{colorlinks=true,linkcolor=ntcolor,urlcolor=ntcolor}
+
+% Notación
+\newcommand{\NT}[1]{\textcolor{ntcolor}{\textit{#1}}}            % no terminal
+\newcommand{\T}[1]{\textcolor{tcolor}{\texttt{#1}}}              % terminal
+\newcommand{\A}[2]{\NT{#1}.\textsf{#2}}                          % atributo
+\newcommand{\Ax}[3]{\NT{#1}$_{#2}$.\textsf{#3}}                  % atributo de X_i
+\newcommand{\fn}[1]{\textsf{\textbf{#1}}}                        % función auxiliar
+\newcommand{\ty}[1]{\texttt{#1}}                                 % tipo
+\newcommand{\kw}[1]{\textbf{#1}}                                 % palabra del pseudocódigo
+
+\setlength{\LTpre}{6pt}
+\setlength{\LTpost}{6pt}
+
+\title{\textbf{Gramática LL(1)}\\[4pt]
+\large Compilador de instrucciones de C}
+\author{Compiladores, Grupo 5 \quad·\quad Equipo 3\\[2pt]
+\small Facultad de Ingeniería - UNAM}
+\date{Semestre 2027-1}
+
+\begin{document}
+\maketitle
+
+\section{Convenciones}
+
+\begin{itemize}[leftmargin=*]
+  \item Los \NT{no terminales} se escriben en cursiva y los \T{terminales} en letra monoespaciada, mientras que el símbolo inicial es \NT{Program}.
+  \item Los terminales \T{id}, \T{int\_const}, \T{float\_const}, \T{char\_const} y \T{string\_lit} representan clases de tokens del analizador léxico, mientras que todos los demás terminales (palabras clave, operadores y puntuación) coinciden con su lexema. \T{\$} marca el fin de la entrada.
+  \item Cuando un no terminal aparece más de una vez en una producción, las apariciones se distinguen con subíndices: en $\NT{AddTail} \rightarrow \NT{AddOp}\ \NT{MulExpr}\ \NT{AddTail}_1$, \NT{AddTail} es el padre y \NT{AddTail}$_1$ el hijo, esto es similar a la sintaxis utilizada en la clase pero, en lugar de usar comillas sencillas para determiar una producción, utilizamos subíndice. 
+  
+  Anteriormente era: \NT{T} $\rightarrow$ \NT{T´}, donde \NT{T} es el padre y \NT{T´} es el hijo.  
+\end{itemize}
+
+\begin{table}[h]
+\centering
+\caption{Correspondencia entre tokens del lexer y terminales de la gramática}
+\begin{tabular}{lll}
+\toprule
+\textbf{Token (\texttt{TokenType})} & \textbf{Terminal} & \textbf{Ejemplos} \\
+\midrule
+\texttt{Keyword}, \texttt{Operator}, \texttt{Punctuation} & el propio lexema & \T{int}, \T{+=}, \T{\{} \\
+\texttt{Identifier} & \T{id} & \texttt{x}, \texttt{total} \\
+\texttt{Constant} entera & \T{int\_const} & \texttt{10}, \texttt{0755} \\
+\texttt{Constant} con \texttt{.}, \texttt{e} o \texttt{E} & \T{float\_const} & \texttt{3.14}, \texttt{2.5e-4}, \texttt{1.5f} \\
+\texttt{Constant} entre \texttt{'} & \T{char\_const} & \texttt{'A'}, \texttt{'\textbackslash n'} \\
+\texttt{Constant} entre \texttt{"} & \T{string\_lit} & \texttt{"total = \%d\textbackslash n"} \\
+\texttt{EndOfFile} & \T{\$} & fin de la entrada \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\newpage 
+
+\section{Gramática LL(1)}
+
+La gramática tiene 51 no terminales y 110 producciones (estas 110, se cuentan considerando que una producción tiene una o más producciones), esta se obtuvo a partir de una gramática de C convencional eliminando la recursión por la izquierda en las expresiones (un nivel por cada precedencia, del operador de menor precedencia al de mayor) y factorizando por la izquierda (left factoring) las producciones que compartían prefijo (\NT{Item}, \NT{Primary}).
+
+\begin{longtable}{@{}r@{\hspace{8pt}}l@{\hspace{4pt}}c@{\hspace{4pt}}l@{}}
+\caption{Producciones numeradas}\\
+\toprule
+\endfirsthead
+\toprule
+\endhead
+\bottomrule
+\endfoot
+{(1)} & \NT{Program} & $\rightarrow$ & \NT{ItemList} \\
+{(2)} & \NT{ItemList} & $\rightarrow$ & \NT{Item}\ \NT{ItemList} \\
+{(3)} &  & $\mid$ & $\varepsilon$ \\
+{(4)} & \NT{Item} & $\rightarrow$ & \NT{Type}\ \T{id}\ \NT{ItemTail} \\
+{(5)} &  & $\mid$ & \NT{Stmt} \\
+{(6)} & \NT{ItemTail} & $\rightarrow$ & \T{(}\ \NT{ParamList}\ \T{)}\ \NT{Block} \\
+{(7)} &  & $\mid$ & \NT{VarTail} \\
+{(8)} & \NT{Type} & $\rightarrow$ & \T{int} \\
+{(9)} &  & $\mid$ & \T{float} \\
+{(10)} &  & $\mid$ & \T{double} \\
+{(11)} &  & $\mid$ & \T{char} \\
+{(12)} &  & $\mid$ & \T{void} \\
+{(13)} & \NT{ParamList} & $\rightarrow$ & \NT{Param}\ \NT{ParamMore} \\
+{(14)} &  & $\mid$ & $\varepsilon$ \\
+{(15)} & \NT{ParamMore} & $\rightarrow$ & \T{,}\ \NT{Param}\ \NT{ParamMore} \\
+{(16)} &  & $\mid$ & $\varepsilon$ \\
+{(17)} & \NT{Param} & $\rightarrow$ & \NT{Type}\ \T{id} \\
+{(18)} & \NT{VarTail} & $\rightarrow$ & \NT{Init}\ \NT{VarMore}\ \T{;} \\
+{(19)} & \NT{VarMore} & $\rightarrow$ & \T{,}\ \T{id}\ \NT{Init}\ \NT{VarMore} \\
+{(20)} &  & $\mid$ & $\varepsilon$ \\
+{(21)} & \NT{Init} & $\rightarrow$ & \T{=}\ \NT{Expr} \\
+{(22)} &  & $\mid$ & $\varepsilon$ \\
+{(23)} & \NT{Block} & $\rightarrow$ & \T{\{}\ \NT{BlockItems}\ \T{\}} \\
+{(24)} & \NT{BlockItems} & $\rightarrow$ & \NT{BlockItem}\ \NT{BlockItems} \\
+{(25)} &  & $\mid$ & $\varepsilon$ \\
+{(26)} & \NT{BlockItem} & $\rightarrow$ & \NT{Type}\ \T{id}\ \NT{VarTail} \\
+{(27)} &  & $\mid$ & \NT{Stmt} \\
+{(28)} & \NT{Stmt} & $\rightarrow$ & \NT{ExprStmt} \\
+{(29)} &  & $\mid$ & \NT{Block} \\
+{(30)} &  & $\mid$ & \NT{IfStmt} \\
+{(31)} &  & $\mid$ & \NT{WhileStmt} \\
+{(32)} &  & $\mid$ & \NT{DoStmt} \\
+{(33)} &  & $\mid$ & \NT{ForStmt} \\
+{(34)} &  & $\mid$ & \NT{ReturnStmt} \\
+{(35)} &  & $\mid$ & \NT{IoStmt} \\
+{(36)} &  & $\mid$ & \T{break}\ \T{;} \\
+{(37)} &  & $\mid$ & \T{continue}\ \T{;} \\
+{(38)} & \NT{ExprStmt} & $\rightarrow$ & \NT{Expr}\ \T{;} \\
+{(39)} &  & $\mid$ & \T{;} \\
+{(40)} & \NT{IfStmt} & $\rightarrow$ & \T{if}\ \T{(}\ \NT{Expr}\ \T{)}\ \NT{Stmt}\ \NT{ElsePart} \\
+{(41)} & \NT{ElsePart} & $\rightarrow$ & \T{else}\ \NT{Stmt} \\
+{(42)} &  & $\mid$ & $\varepsilon$ \\
+{(43)} & \NT{WhileStmt} & $\rightarrow$ & \T{while}\ \T{(}\ \NT{Expr}\ \T{)}\ \NT{Stmt} \\
+{(44)} & \NT{DoStmt} & $\rightarrow$ & \T{do}\ \NT{Stmt}\ \T{while}\ \T{(}\ \NT{Expr}\ \T{)}\ \T{;} \\
+{(45)} & \NT{ForStmt} & $\rightarrow$ & \T{for}\ \T{(}\ \NT{ForInit}\ \NT{OptExpr}\ \T{;}\ \NT{OptExpr}\ \T{)}\ \NT{Stmt} \\
+{(46)} & \NT{ForInit} & $\rightarrow$ & \NT{Type}\ \T{id}\ \NT{VarTail} \\
+{(47)} &  & $\mid$ & \NT{ExprStmt} \\
+{(48)} & \NT{OptExpr} & $\rightarrow$ & \NT{Expr} \\
+{(49)} &  & $\mid$ & $\varepsilon$ \\
+{(50)} & \NT{ReturnStmt} & $\rightarrow$ & \T{return}\ \NT{OptExpr}\ \T{;} \\
+{(51)} & \NT{IoStmt} & $\rightarrow$ & \NT{IoFunc}\ \T{(}\ \NT{ArgList}\ \T{)}\ \T{;} \\
+{(52)} & \NT{IoFunc} & $\rightarrow$ & \T{printf} \\
+{(53)} &  & $\mid$ & \T{print} \\
+{(54)} &  & $\mid$ & \T{scanf} \\
+{(55)} & \NT{ArgList} & $\rightarrow$ & \NT{Expr}\ \NT{ArgMore} \\
+{(56)} &  & $\mid$ & $\varepsilon$ \\
+{(57)} & \NT{ArgMore} & $\rightarrow$ & \T{,}\ \NT{Expr}\ \NT{ArgMore} \\
+{(58)} &  & $\mid$ & $\varepsilon$ \\
+{(59)} & \NT{Expr} & $\rightarrow$ & \NT{OrExpr}\ \NT{AssignTail} \\
+{(60)} & \NT{AssignTail} & $\rightarrow$ & \NT{AssignOp}\ \NT{Expr} \\
+{(61)} &  & $\mid$ & $\varepsilon$ \\
+{(62)} & \NT{AssignOp} & $\rightarrow$ & \T{=} \\
+{(63)} &  & $\mid$ & \T{+=} \\
+{(64)} &  & $\mid$ & \T{-=} \\
+{(65)} &  & $\mid$ & \T{*=} \\
+{(66)} &  & $\mid$ & \T{/=} \\
+{(67)} &  & $\mid$ & \T{\%=} \\
+{(68)} & \NT{OrExpr} & $\rightarrow$ & \NT{AndExpr}\ \NT{OrTail} \\
+{(69)} & \NT{OrTail} & $\rightarrow$ & \T{||}\ \NT{AndExpr}\ \NT{OrTail} \\
+{(70)} &  & $\mid$ & $\varepsilon$ \\
+{(71)} & \NT{AndExpr} & $\rightarrow$ & \NT{EqExpr}\ \NT{AndTail} \\
+{(72)} & \NT{AndTail} & $\rightarrow$ & \T{\&\&}\ \NT{EqExpr}\ \NT{AndTail} \\
+{(73)} &  & $\mid$ & $\varepsilon$ \\
+{(74)} & \NT{EqExpr} & $\rightarrow$ & \NT{RelExpr}\ \NT{EqTail} \\
+{(75)} & \NT{EqTail} & $\rightarrow$ & \NT{EqOp}\ \NT{RelExpr}\ \NT{EqTail} \\
+{(76)} &  & $\mid$ & $\varepsilon$ \\
+{(77)} & \NT{EqOp} & $\rightarrow$ & \T{==} \\
+{(78)} &  & $\mid$ & \T{!=} \\
+{(79)} & \NT{RelExpr} & $\rightarrow$ & \NT{AddExpr}\ \NT{RelTail} \\
+{(80)} & \NT{RelTail} & $\rightarrow$ & \NT{RelOp}\ \NT{AddExpr}\ \NT{RelTail} \\
+{(81)} &  & $\mid$ & $\varepsilon$ \\
+{(82)} & \NT{RelOp} & $\rightarrow$ & \T{<} \\
+{(83)} &  & $\mid$ & \T{>} \\
+{(84)} &  & $\mid$ & \T{<=} \\
+{(85)} &  & $\mid$ & \T{>=} \\
+{(86)} & \NT{AddExpr} & $\rightarrow$ & \NT{MulExpr}\ \NT{AddTail} \\
+{(87)} & \NT{AddTail} & $\rightarrow$ & \NT{AddOp}\ \NT{MulExpr}\ \NT{AddTail} \\
+{(88)} &  & $\mid$ & $\varepsilon$ \\
+{(89)} & \NT{AddOp} & $\rightarrow$ & \T{+} \\
+{(90)} &  & $\mid$ & \T{-} \\
+{(91)} & \NT{MulExpr} & $\rightarrow$ & \NT{Unary}\ \NT{MulTail} \\
+{(92)} & \NT{MulTail} & $\rightarrow$ & \NT{MulOp}\ \NT{Unary}\ \NT{MulTail} \\
+{(93)} &  & $\mid$ & $\varepsilon$ \\
+{(94)} & \NT{MulOp} & $\rightarrow$ & \T{*} \\
+{(95)} &  & $\mid$ & \T{/} \\
+{(96)} &  & $\mid$ & \T{\%} \\
+{(97)} & \NT{Unary} & $\rightarrow$ & \NT{UnaryOp}\ \NT{Unary} \\
+{(98)} &  & $\mid$ & \NT{Primary} \\
+{(99)} & \NT{UnaryOp} & $\rightarrow$ & \T{-} \\
+{(100)} &  & $\mid$ & \T{+} \\
+{(101)} &  & $\mid$ & \T{!} \\
+{(102)} &  & $\mid$ & \T{\&} \\
+{(103)} & \NT{Primary} & $\rightarrow$ & \T{id}\ \NT{CallTail} \\
+{(104)} &  & $\mid$ & \T{int\_const} \\
+{(105)} &  & $\mid$ & \T{float\_const} \\
+{(106)} &  & $\mid$ & \T{char\_const} \\
+{(107)} &  & $\mid$ & \T{string\_lit} \\
+{(108)} &  & $\mid$ & \T{(}\ \NT{Expr}\ \T{)} \\
+{(109)} & \NT{CallTail} & $\rightarrow$ & \T{(}\ \NT{ArgList}\ \T{)} \\
+{(110)} &  & $\mid$ & $\varepsilon$ \\
+\end{longtable}
+
+\subsection{Condición LL(1) y el \textit{else} colgante}
+
+Una gramática es LL(1) si para cada par de alternativas $A \rightarrow \alpha \mid \beta$ se cumple
+\[
+  \mathrm{FIRST}(\alpha) \cap \mathrm{FIRST}(\beta) = \varnothing
+  \qquad\text{y}\qquad
+  \beta \Rightarrow^{*} \varepsilon \;\Longrightarrow\; \mathrm{FIRST}(\alpha) \cap \mathrm{FOLLOW}(A) = \varnothing ,
+\]
+es decir, si ninguna celda $M[A, a]$ de la tabla predictiva recibe dos producciones, el programa calcula FIRST, FOLLOW y la tabla a partir de la gramática (\texttt{parser --grammar}), y la única celda con dos producciones es $M[\NT{ElsePart}, \T{else}]$, con (41) y (42). Esto se debe a que $\T{else} \in \mathrm{FIRST}(\T{else}\ \NT{Stmt})$ y también $\T{else} \in \mathrm{FOLLOW}(\NT{ElsePart})$. Es la ambigüedad del \textit{else} colgante de C: en \texttt{if (a) if (b) x; else y;} el \texttt{else} podría pertenecer a cualquiera de los dos \texttt{if}. El conflicto se resuelve conservando (41) $\NT{ElsePart} \rightarrow \T{else}\ \NT{Stmt}$, lo que asocia el \texttt{else} con el \texttt{if} más cercano, tal como establece el estándar de C.
+
+\section{Traducción dirigida por la sintaxis (SDT)}
+
+La traducción se especifica como una \emph{definición dirigida por la sintaxis} (SDD): cada símbolo tiene atributos y cada producción tiene reglas semánticas que los calculan, todos los atributos son sintetizados o heredados del padre o de hermanos a la izquierda, por lo que la definición es \textbf{L-atribuida}, es por eso se evalúa con un único recorrido en profundidad, de izquierda a derecha, sobre el árbol de derivación, las reglas de cada producción se ejecutan en el orden en que aparecen, y una regla que usa un atributo de un hijo se ejecuta después de visitar a ese hijo.
+
+\subsection{Tipos}
+
+\begin{itemize}[leftmargin=*]
+  \item Tipos base: \ty{void}, \ty{char}, \ty{int}, \ty{float}, \ty{double}. Apuntadores: \ty{char*} (literales de cadena) y \ty{T*} (resultado de \T{\&}x).
+  \item \textbf{Numéricos}: \ty{char}, \ty{int}, \ty{float}, \ty{double}. \textbf{Enteros}: \ty{char}, \ty{int}. \textbf{Flotantes}: \ty{float}, \ty{double}. \textbf{Escalares}: numéricos y apuntadores.
+  \item Rango: $\ty{char} < \ty{int} < \ty{float} < \ty{double}$. Promoción: $\fn{prom}(\ty{char}) = \ty{int}$ y $\fn{prom}(t) = t$ en otro caso.
+  \item \ty{err} es un tipo interno que se asigna a una expresión que ya produjo un error, toda función auxiliar que recibe \ty{err} lo propaga sin reportar nada nuevo, para no repetir el mismo error en todos los niveles del árbol.
+  \item $\bot$ significa ``no existe'': un \textsf{tok} que no es un único token, o un \textsf{ret} fuera de cualquier función.
+\end{itemize}
+
+\subsection{Atributos}
+
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{4.6cm}>{\raggedright\arraybackslash}p{1.8cm}p{1.3cm}>{\raggedright\arraybackslash}p{7.6cm}@{}}
+\caption{Atributos de la SDD (S = sintetizado, H = heredado)}\\
+\toprule
+\textbf{Símbolos} & \textbf{Atributo} & \textbf{Clase} & \textbf{Significado} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Símbolos} & \textbf{Atributo} & \textbf{Clase} & \textbf{Significado} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\T{id} y demás terminales & \textsf{lex}, \textsf{lín} & léxico & Lexema y línea del token (los da el lexer). \\
+\NT{Type} & \textsf{t} & S & Tipo escrito en la declaración. \\
+\NT{ItemTail}, \NT{VarTail}, \NT{Init} & \textsf{t}, \textsf{nombre}, \textsf{lín} & H & Tipo declarado, nombre y línea del identificador que se declara. \\
+\NT{VarMore} & \textsf{t} & H & Tipo declarado, compartido por todos los declaradores de la lista. \\
+\NT{Param} & \textsf{t}, \textsf{nombre}, \textsf{lín} & S & Tipo, nombre y línea de un parámetro. \\
+\NT{ParamList}, \NT{ParamMore} & \textsf{ps} & S & Lista de parámetros $\langle t, \text{nombre}, \text{línea}\rangle$. \\
+\NT{Block} & \textsf{nuevo} & H & Indica si el bloque abre un ámbito nuevo (\textsf{falso} solo en el cuerpo de una función). \\
+\NT{ItemList}, \NT{Item}, \NT{Block}, \NT{BlockItems}, \NT{BlockItem}, \NT{Stmt}, \NT{IfStmt}, \NT{ElsePart}, \NT{WhileStmt}, \NT{DoStmt}, \NT{ForStmt}, \NT{ReturnStmt} & \textsf{loop} & H & Número de ciclos que encierran la sentencia (para \T{break}/\T{continue}). \\
+(los mismos) & \textsf{ret} & H & Tipo de retorno de la función que encierra la sentencia, o $\bot$ fuera de funciones. \\
+\NT{Expr}, \NT{OrExpr}, \NT{AndExpr}, \NT{EqExpr}, \NT{RelExpr}, \NT{AddExpr}, \NT{MulExpr}, \NT{Unary}, \NT{Primary} & \textsf{tipo} & S & Tipo de la expresión. \\
+(los mismos) & \textsf{tok} & S & El token, si la expresión consiste en un único token (una variable o un literal), o $\bot$. Sirve para saber si algo es asignable y si el formato de \T{printf} es un literal. \\
+\NT{AssignTail}, \NT{OrTail}, \NT{AndTail}, \NT{EqTail}, \NT{RelTail}, \NT{AddTail}, \NT{MulTail} & \textsf{her} & H & Tipo del operando izquierdo acumulado. \\
+(los mismos) & \textsf{sin} & S & Tipo final de la cadena de operaciones. \\
+(los mismos) & \textsf{vacío} & S & \textsf{verdadero} si la cola derivó $\varepsilon$. \\
+\NT{AssignTail} & \textsf{izq} & H & \textsf{tok} del lado izquierdo de la asignación. \\
+\NT{AssignOp}, \NT{EqOp}, \NT{RelOp}, \NT{AddOp}, \NT{MulOp}, \NT{UnaryOp}, \NT{IoFunc} & \textsf{op} & S & Lexema del operador o de la función de E/S. \\
+\NT{OptExpr} & \textsf{tipo}, \textsf{vacío} & S & Tipo de la expresión opcional y si está ausente. \\
+\NT{ArgList}, \NT{ArgMore}, \NT{CallTail} & \textsf{args} & S & Lista de argumentos $\langle \text{tipo}, \text{tok}\rangle$. \\
+\NT{CallTail} & \textsf{vacío} & S & \textsf{falso} si hay llamada a función. \\
+\end{longtable}
+
+\paragraph{Convención de copia.} Los atributos heredados \textsf{loop} y \textsf{ret} pasan sin cambios del padre a cada hijo que los tiene, salvo en las producciones donde la tabla indica otro valor: (1), (6), (43), (44) y (45), por brevedad, esas copias no se escriben en la tabla.
+
+\paragraph{Tabla de símbolos.} Es una pila de ámbitos: uno global, uno por función (parámetros y cuerpo), uno por bloque y uno por cada \T{for}, cada entrada guarda la clase (\textsf{var} o \textsf{función}), el tipo, los tipos de los parámetros y la línea de declaración.
+
+\subsection{Funciones auxiliares}
+
+En todas las funciones, \fn{error}($l$, \dots) registra un error en la línea $l$ y \fn{aviso}($l$, \dots) registra una advertencia. El análisis no se detiene en el primer error.
+
+\begin{description}[leftmargin=1em,style=nextline,itemsep=4pt]
+\item[\fn{abrirÁmbito}(), \fn{cerrarÁmbito}()] Apilan y desapilan un ámbito de la tabla de símbolos.
+
+\item[\fn{buscar}($n$), \fn{buscarLocal}($n$)] Buscan $n$ del ámbito más interno al global, o solo en el ámbito actual. Si no lo encuentran, devuelven $\bot$.
+
+\item[\fn{declarar}($n$, $e$, $l$)] \kw{si} \fn{buscarLocal}($n$) $\neq \bot$ \kw{entonces} \fn{error}($l$, redeclaración de $n$) \kw{si no} inserta $e$ en el ámbito actual. \hfill \textit{(R1)}
+
+\item[\fn{declararVar}($t$, $n$, $l$)] \kw{si} $t = \ty{void}$ \kw{entonces} \fn{error}($l$, variable \ty{void}); $t = \ty{err}$. \hfill \textit{(R2)}\\
+Después: \fn{declarar}($n$, $\langle\textsf{var}, t\rangle$, $l$).
+
+\item[\fn{usarVariable}(\T{id})] $s$ = \fn{buscar}(\T{id}.\textsf{lex}).
+\kw{si} $s = \bot$ \kw{entonces} \fn{error}(no declarada) y devuelve \ty{err}. \hfill \textit{(R3)}\\
+\kw{si} $s$ es función \kw{entonces} \fn{error}(función usada como valor) y devuelve \ty{err}. \kw{si no} devuelve $s$.\textsf{tipo}.
+
+\item[\fn{llamada}(\T{id}, \textit{args})] $s$ = \fn{buscar}(\T{id}.\textsf{lex}).
+\kw{si} $s = \bot$ o $s$ no es función \kw{entonces} \fn{error} y devuelve \ty{err}.
+\kw{si} $|\textit{args}| \neq |s.\textsf{params}|$ \kw{entonces} \fn{error}(número de argumentos).
+\kw{si no}, para cada $i$: \fn{asignable}($s$.\textsf{params}$_i$, \textit{args}$_i$.\textsf{tipo}, \T{id}.\textsf{lín}).
+Devuelve $s$.\textsf{tipo}. \hfill \textit{(R10)}
+
+\item[\fn{asignable}($d$, $o$, $l$)] Regla para inicializaciones, asignaciones, argumentos y \T{return} ($d$ = destino, $o$ = origen). \hfill \textit{(R4, W1)}
+\begin{itemize}[nosep]
+  \item \kw{si} $d = \ty{err}$ o $o = \ty{err}$: nada.
+  \item \kw{si} $o = \ty{void}$: \fn{error}(un valor \ty{void} no se puede usar).
+  \item \kw{si} $d$ o $o$ es apuntador: \kw{si} $d \neq o$ \kw{entonces} \fn{error}(tipos incompatibles).
+  \item \kw{si} $o$ es flotante y $d$ es entero: \fn{aviso}(se pierde la parte fraccionaria).
+  \item En otro caso (numéricos) la conversión implícita es válida, como en C.
+\end{itemize}
+
+\item[\fn{opBinaria}($\circ$, $a$, $b$, $l$)] Tipo del resultado de $a \circ b$:
+\begin{itemize}[nosep]
+  \item \kw{si} $a = \ty{err}$ o $b = \ty{err}$: \ty{err}.
+  \item $\circ \in \{\T{||}, \T{\&\&}\}$: \ty{int} si $a$ y $b$ son escalares. \hfill \textit{(R8)}
+  \item $\circ \in \{\T{==}, \T{!=}, \T{<}, \T{>}, \T{<=}, \T{>=}\}$: \ty{int} si ambos son numéricos o son el mismo tipo apuntador. \hfill \textit{(R8)}
+  \item $\circ = \T{\%}$: \ty{int} si ambos son enteros; si no, \fn{error}(\T{\%} requiere enteros). \hfill \textit{(R7)}
+  \item $\circ \in \{\T{+}, \T{-}, \T{*}, \T{/}\}$: si ambos son numéricos, \fn{prom}(el de mayor rango). \hfill \textit{(R6)}
+  \item En otro caso: \fn{error}($l$, operandos inválidos) y devuelve \ty{err}.
+\end{itemize}
+
+\item[\fn{opUnaria}($\circ$, $t$, \textit{tok}, $l$)] \hfill \textit{(R9)}
+\begin{itemize}[nosep]
+  \item \kw{si} $t = \ty{err}$: \ty{err}.
+  \item $\circ = \T{\&}$: \textit{tok} debe ser un \T{id} y $t$ no debe ser apuntador; el resultado es $t$\texttt{*}.
+  \item $\circ = \T{!}$: \ty{int} si $t$ es escalar.
+  \item $\circ \in \{\T{-}, \T{+}\}$: \fn{prom}($t$) si $t$ es numérico.
+  \item En otro caso: \fn{error}($l$, operando inválido) y devuelve \ty{err}.
+\end{itemize}
+
+\item[\fn{condición}($t$, $l$, \textit{dónde})] \kw{si} $t \neq \ty{err}$ y $t$ no es escalar \kw{entonces} \fn{error}($l$, la condición de \textit{dónde} debe ser escalar). \hfill \textit{(R11)}
+
+\item[\fn{revisarFormato}($f$, \textit{args}, $l$)] Para $f \in \{\T{printf}, \T{scanf}\}$. \hfill \textit{(R14)}
+\begin{itemize}[nosep]
+  \item \kw{si} \textit{args} $= [\,]$: \fn{error}(falta el formato).
+  \item \kw{si} \textit{args}$_1$.\textsf{tok} no es un \T{string\_lit}: \fn{error}(el formato debe ser un literal) y termina.
+  \item $S$ = especificadores del literal, de la forma\\ \hspace*{1.5em}\texttt{\%[-+ \#0]*[0-9]*(.[0-9]*)?l?c},\quad con $c \in$ \texttt{diuxXfFeEgGcs}. \texttt{\%\%} no cuenta; cualquier otro \texttt{\%} produce \fn{error}(especificador desconocido).
+  \item \kw{si} $|S| \neq |\textit{args}| - 1$: \fn{error}(número de especificadores y argumentos distinto).
+  \item Para cada par ($S_i$, \textit{args}$_{i+1}$) se revisa el tipo según la tabla~\ref{tab:formatos}. En \T{scanf}, un argumento que no es apuntador produce \fn{error}(se espera una dirección \T{\&}x).
+\end{itemize}
+
+\item[\fn{revisarPrint}(\textit{args}, $l$)] \kw{si} \textit{args} $= [\,]$ \kw{entonces} \fn{error}(\T{print} necesita al menos un argumento). Cada argumento de tipo \ty{void} produce \fn{error}. \hfill \textit{(R15)}
+\end{description}
+
+\begin{table}[h]
+\centering
+\caption{Tipos aceptados por cada especificador de formato}
+\label{tab:formatos}
+\begin{tabular}{lll}
+\toprule
+\textbf{Especificador} & \textbf{\T{printf}} & \textbf{\T{scanf}} \\
+\midrule
+\texttt{\%d \%i \%u \%x \%X} & \ty{int} o \ty{char} & \ty{int*} \\
+\texttt{\%c} & \ty{char} o \ty{int} & \ty{char*} \\
+\texttt{\%f \%e \%g} (y mayúsculas) & \ty{float} o \ty{double} & \ty{float*} \\
+\texttt{\%lf \%le \%lg} & \ty{float} o \ty{double} & \ty{double*} \\
+\texttt{\%s} & \ty{char*} & \ty{char*} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Definición dirigida por la sintaxis completa}
+
+En las reglas, \fn{lín}($X$) es la línea del primer token derivado de $X$, las producciones marcadas con \textcolor{gray}{---} no tienen reglas propias, aparte de la convención de copia de \textsf{loop} y \textsf{ret}.
+
+{\small
+\begin{longtable}{@{}r@{\hspace{6pt}}>{\raggedright\arraybackslash}p{5.6cm}@{\hspace{8pt}}>{\raggedright\arraybackslash}p{9.9cm}@{}}
+\caption{Producciones y reglas semánticas}\\
+\toprule
+\textbf{\#} & \textbf{Producción} & \textbf{Reglas semánticas} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{\#} & \textbf{Producción} & \textbf{Reglas semánticas} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\multicolumn{3}{l}{\textbf{Programa}} \\ \midrule
+{(1)} & \NT{Program} $\rightarrow$ \NT{ItemList} & \fn{abrirÁmbito}() \quad\textit{(ámbito global)} \newline \A{ItemList}{loop} = 0;\quad \A{ItemList}{ret} = $\bot$ \\
+\addlinespace[2pt]
+{(2)} & \NT{ItemList} $\rightarrow$ \NT{Item}\ \NT{ItemList}$_{1}$ & \textcolor{gray}{---} \\
+\addlinespace[2pt]
+{(3)} & \NT{ItemList} $\rightarrow$ $\varepsilon$ & \textcolor{gray}{---} \\
+\addlinespace[2pt]
+\midrule
+\multicolumn{3}{l}{\textbf{Declaraciones}} \\ \midrule
+{(4)} & \NT{Item} $\rightarrow$ \NT{Type}\ \T{id}\ \NT{ItemTail} & \A{ItemTail}{t} = \A{Type}{t} \newline \A{ItemTail}{nombre} = \T{id}.\textsf{lex};\quad \A{ItemTail}{lín} = \T{id}.\textsf{lín} \\
+\addlinespace[2pt]
+{(5)} & \NT{Item} $\rightarrow$ \NT{Stmt} & \textcolor{gray}{---} \\
+\addlinespace[2pt]
+{(6)} & \NT{ItemTail} $\rightarrow$ \T{(}\ \NT{ParamList}\ \T{)}\ \NT{Block} & \fn{declarar}(\A{ItemTail}{nombre}, $\langle$\textsf{función}, \A{ItemTail}{t}, \fn{tipos}(\A{ParamList}{ps})$\rangle$, \A{ItemTail}{lín}) \newline \fn{abrirÁmbito}() \newline \kw{para cada} $\langle t, n, l\rangle \in$ \A{ParamList}{ps}: \kw{si} $t =$ \ty{void} \kw{entonces} \fn{error}($l$, parámetro \ty{void}); $t$ = \ty{err} \newline \hspace*{1.5em}\fn{declarar}($n$, $\langle$\textsf{var}, $t\rangle$, $l$) \quad\textit{(nombre repetido $\Rightarrow$ parámetro duplicado)} \newline \A{Block}{nuevo} = \textsf{falso};\quad \A{Block}{ret} = \A{ItemTail}{t};\quad \A{Block}{loop} = 0 \newline \fn{cerrarÁmbito}() \quad\textit{(después de visitar \NT{Block})} \\
+\addlinespace[2pt]
+{(7)} & \NT{ItemTail} $\rightarrow$ \NT{VarTail} & \A{VarTail}{t} = \A{ItemTail}{t};\quad \A{VarTail}{nombre} = \A{ItemTail}{nombre};\quad \A{VarTail}{lín} = \A{ItemTail}{lín} \\
+\addlinespace[2pt]
+{(8)} & \NT{Type} $\rightarrow$ \T{int} & \A{Type}{t} = \ty{int} \\
+\addlinespace[2pt]
+{(9)} & \NT{Type} $\rightarrow$ \T{float} & \A{Type}{t} = \ty{float} \\
+\addlinespace[2pt]
+{(10)} & \NT{Type} $\rightarrow$ \T{double} & \A{Type}{t} = \ty{double} \\
+\addlinespace[2pt]
+{(11)} & \NT{Type} $\rightarrow$ \T{char} & \A{Type}{t} = \ty{char} \\
+\addlinespace[2pt]
+{(12)} & \NT{Type} $\rightarrow$ \T{void} & \A{Type}{t} = \ty{void} \\
+\addlinespace[2pt]
+{(13)} & \NT{ParamList} $\rightarrow$ \NT{Param}\ \NT{ParamMore} & \A{ParamList}{ps} = [$\langle$\A{Param}{t}, \A{Param}{nombre}, \A{Param}{lín}$\rangle$] $\mathbin{+\!\!+}$ \A{ParamMore}{ps} \\
+\addlinespace[2pt]
+{(14)} & \NT{ParamList} $\rightarrow$ $\varepsilon$ & \A{ParamList}{ps} = [\,] \\
+\addlinespace[2pt]
+{(15)} & \NT{ParamMore} $\rightarrow$ \T{,}\ \NT{Param}\ \NT{ParamMore}$_{1}$ & \A{ParamMore}{ps} = [$\langle$\A{Param}{t}, \A{Param}{nombre}, \A{Param}{lín}$\rangle$] $\mathbin{+\!\!+}$ \Ax{ParamMore}{1}{ps} \\
+\addlinespace[2pt]
+{(16)} & \NT{ParamMore} $\rightarrow$ $\varepsilon$ & \A{ParamMore}{ps} = [\,] \\
+\addlinespace[2pt]
+{(17)} & \NT{Param} $\rightarrow$ \NT{Type}\ \T{id} & \A{Param}{t} = \A{Type}{t};\quad \A{Param}{nombre} = \T{id}.\textsf{lex};\quad \A{Param}{lín} = \T{id}.\textsf{lín} \\
+\addlinespace[2pt]
+{(18)} & \NT{VarTail} $\rightarrow$ \NT{Init}\ \NT{VarMore}\ \T{;} & \A{Init}{t} = \A{VarTail}{t};\quad \A{Init}{nombre} = \A{VarTail}{nombre};\quad \A{Init}{lín} = \A{VarTail}{lín} \newline \A{VarMore}{t} = \A{VarTail}{t} \\
+\addlinespace[2pt]
+{(19)} & \NT{VarMore} $\rightarrow$ \T{,}\ \T{id}\ \NT{Init}\ \NT{VarMore}$_{1}$ & \A{Init}{t} = \A{VarMore}{t};\quad \A{Init}{nombre} = \T{id}.\textsf{lex};\quad \A{Init}{lín} = \T{id}.\textsf{lín} \newline \Ax{VarMore}{1}{t} = \A{VarMore}{t} \\
+\addlinespace[2pt]
+{(20)} & \NT{VarMore} $\rightarrow$ $\varepsilon$ & \textcolor{gray}{---} \\
+\addlinespace[2pt]
+{(21)} & \NT{Init} $\rightarrow$ \T{=}\ \NT{Expr} & \kw{si} \A{Init}{t} $\neq$ \ty{void} \kw{entonces} \fn{asignable}(\A{Init}{t}, \A{Expr}{tipo}, \A{Init}{lín}) \newline \fn{declararVar}(\A{Init}{t}, \A{Init}{nombre}, \A{Init}{lín}) \quad\textit{(después de evaluar \NT{Expr})} \\
+\addlinespace[2pt]
+{(22)} & \NT{Init} $\rightarrow$ $\varepsilon$ & \fn{declararVar}(\A{Init}{t}, \A{Init}{nombre}, \A{Init}{lín}) \\
+\addlinespace[2pt]
+\midrule
+\multicolumn{3}{l}{\textbf{Sentencias}} \\ \midrule
+{(23)} & \NT{Block} $\rightarrow$ \T{\{}\ \NT{BlockItems}\ \T{\}} & \kw{si} \A{Block}{nuevo} \kw{entonces} \fn{abrirÁmbito}() \quad\textit{(antes de \NT{BlockItems})} \newline \kw{si} \A{Block}{nuevo} \kw{entonces} \fn{cerrarÁmbito}() \quad\textit{(después de \NT{BlockItems})} \\
+\addlinespace[2pt]
+{(24)} & \NT{BlockItems} $\rightarrow$ \NT{BlockItem}\ \NT{BlockItems}$_{1}$ & \textcolor{gray}{---} \\
+\addlinespace[2pt]
+{(25)} & \NT{BlockItems} $\rightarrow$ $\varepsilon$ & \textcolor{gray}{---} \\
+\addlinespace[2pt]
+{(26)} & \NT{BlockItem} $\rightarrow$ \NT{Type}\ \T{id}\ \NT{VarTail} & \A{VarTail}{t} = \A{Type}{t};\quad \A{VarTail}{nombre} = \T{id}.\textsf{lex};\quad \A{VarTail}{lín} = \T{id}.\textsf{lín} \\
+\addlinespace[2pt]
+{(27)} & \NT{BlockItem} $\rightarrow$ \NT{Stmt} & \textcolor{gray}{---} \\
+\addlinespace[2pt]
+{(28)} & \NT{Stmt} $\rightarrow$ \NT{ExprStmt} & \textcolor{gray}{---} \\
+\addlinespace[2pt]
+{(29)} & \NT{Stmt} $\rightarrow$ \NT{Block} & \A{Block}{nuevo} = \textsf{verdadero} \\
+\addlinespace[2pt]
+{(30)} & \NT{Stmt} $\rightarrow$ \NT{IfStmt} & \textcolor{gray}{---} \\
+\addlinespace[2pt]
+{(31)} & \NT{Stmt} $\rightarrow$ \NT{WhileStmt} & \textcolor{gray}{---} \\
+\addlinespace[2pt]
+{(32)} & \NT{Stmt} $\rightarrow$ \NT{DoStmt} & \textcolor{gray}{---} \\
+\addlinespace[2pt]
+{(33)} & \NT{Stmt} $\rightarrow$ \NT{ForStmt} & \textcolor{gray}{---} \\
+\addlinespace[2pt]
+{(34)} & \NT{Stmt} $\rightarrow$ \NT{ReturnStmt} & \textcolor{gray}{---} \\
+\addlinespace[2pt]
+{(35)} & \NT{Stmt} $\rightarrow$ \NT{IoStmt} & \textcolor{gray}{---} \\
+\addlinespace[2pt]
+{(36)} & \NT{Stmt} $\rightarrow$ \T{break}\ \T{;} & \kw{si} \A{Stmt}{loop} $= 0$ \kw{entonces} \fn{error}(\T{break}.\textsf{lín}, \T{break} fuera de un ciclo) \\
+\addlinespace[2pt]
+{(37)} & \NT{Stmt} $\rightarrow$ \T{continue}\ \T{;} & \kw{si} \A{Stmt}{loop} $= 0$ \kw{entonces} \fn{error}(\T{continue}.\textsf{lín}, \T{continue} fuera de un ciclo) \\
+\addlinespace[2pt]
+{(38)} & \NT{ExprStmt} $\rightarrow$ \NT{Expr}\ \T{;} & \textit{(se evalúa \NT{Expr} y su tipo se descarta)} \\
+\addlinespace[2pt]
+{(39)} & \NT{ExprStmt} $\rightarrow$ \T{;} & \textcolor{gray}{---} \\
+\addlinespace[2pt]
+{(40)} & \NT{IfStmt} $\rightarrow$ \T{if}\ \T{(}\ \NT{Expr}\ \T{)}\ \NT{Stmt}\ \NT{ElsePart} & \fn{condición}(\A{Expr}{tipo}, \fn{lín}(\NT{Expr}), \T{if}) \\
+\addlinespace[2pt]
+{(41)} & \NT{ElsePart} $\rightarrow$ \T{else}\ \NT{Stmt} & \textcolor{gray}{---} \\
+\addlinespace[2pt]
+{(42)} & \NT{ElsePart} $\rightarrow$ $\varepsilon$ & \textcolor{gray}{---} \\
+\addlinespace[2pt]
+{(43)} & \NT{WhileStmt} $\rightarrow$ \T{while}\ \T{(}\ \NT{Expr}\ \T{)}\ \NT{Stmt} & \fn{condición}(\A{Expr}{tipo}, \fn{lín}(\NT{Expr}), \T{while}) \newline \A{Stmt}{loop} = \A{WhileStmt}{loop} + 1 \\
+\addlinespace[2pt]
+{(44)} & \NT{DoStmt} $\rightarrow$ \T{do}\ \NT{Stmt}\ \T{while}\ \T{(}\ \NT{Expr}\ \T{)}\ \T{;} & \A{Stmt}{loop} = \A{DoStmt}{loop} + 1 \newline \fn{condición}(\A{Expr}{tipo}, \fn{lín}(\NT{Expr}), \T{do-while}) \\
+\addlinespace[2pt]
+{(45)} & \NT{ForStmt} $\rightarrow$ \T{for}\ \T{(}\ \NT{ForInit}\ \NT{OptExpr}$_{1}$\ \T{;}\ \NT{OptExpr}$_{2}$\ \T{)}\ \NT{Stmt} & \fn{abrirÁmbito}() \quad\textit{(antes de \NT{ForInit}: la variable de control es local al ciclo)} \newline \kw{si no} \Ax{OptExpr}{1}{vacío} \kw{entonces} \fn{condición}(\Ax{OptExpr}{1}{tipo}, \fn{lín}(\NT{OptExpr}$_1$), \T{for}) \newline \A{Stmt}{loop} = \A{ForStmt}{loop} + 1 \newline \fn{cerrarÁmbito}() \quad\textit{(después de \NT{Stmt})} \\
+\addlinespace[2pt]
+{(46)} & \NT{ForInit} $\rightarrow$ \NT{Type}\ \T{id}\ \NT{VarTail} & \A{VarTail}{t} = \A{Type}{t};\quad \A{VarTail}{nombre} = \T{id}.\textsf{lex};\quad \A{VarTail}{lín} = \T{id}.\textsf{lín} \\
+\addlinespace[2pt]
+{(47)} & \NT{ForInit} $\rightarrow$ \NT{ExprStmt} & \textcolor{gray}{---} \\
+\addlinespace[2pt]
+{(48)} & \NT{OptExpr} $\rightarrow$ \NT{Expr} & \A{OptExpr}{tipo} = \A{Expr}{tipo};\quad \A{OptExpr}{vacío} = \textsf{falso} \\
+\addlinespace[2pt]
+{(49)} & \NT{OptExpr} $\rightarrow$ $\varepsilon$ & \A{OptExpr}{tipo} = \ty{void};\quad \A{OptExpr}{vacío} = \textsf{verdadero} \\
+\addlinespace[2pt]
+{(50)} & \NT{ReturnStmt} $\rightarrow$ \T{return}\ \NT{OptExpr}\ \T{;} & \kw{si} \A{ReturnStmt}{ret} $= \bot$ \kw{entonces} \fn{error}($l$, \T{return} fuera de una función) \newline \kw{si no, si} \A{OptExpr}{vacío} \kw{y} \A{ReturnStmt}{ret} $\neq$ \ty{void} \kw{entonces} \fn{error}($l$, \T{return} sin valor) \newline \kw{si no, si no} \A{OptExpr}{vacío} \kw{y} \A{ReturnStmt}{ret} $=$ \ty{void} \kw{entonces} \fn{error}($l$, \T{return} con valor en función \ty{void}) \newline \kw{si no, si no} \A{OptExpr}{vacío} \kw{entonces} \fn{asignable}(\A{ReturnStmt}{ret}, \A{OptExpr}{tipo}, $l$) \newline \textit{donde $l$ = \T{return}.\textsf{lín}} \\
+\addlinespace[2pt]
+{(51)} & \NT{IoStmt} $\rightarrow$ \NT{IoFunc}\ \T{(}\ \NT{ArgList}\ \T{)}\ \T{;} & \kw{si} \A{IoFunc}{op} $=$ \T{print} \kw{entonces} \fn{revisarPrint}(\A{ArgList}{args}, $l$) \newline \kw{si no} \fn{revisarFormato}(\A{IoFunc}{op}, \A{ArgList}{args}, $l$) \quad\textit{donde $l$ = \fn{lín}(\NT{IoStmt})} \\
+\addlinespace[2pt]
+\midrule
+\multicolumn{3}{l}{\textbf{Entrada/salida y argumentos}} \\ \midrule
+{(52)} & \NT{IoFunc} $\rightarrow$ \T{printf} & \A{IoFunc}{op} = \T{printf} \\
+\addlinespace[2pt]
+{(53)} & \NT{IoFunc} $\rightarrow$ \T{print} & \A{IoFunc}{op} = \T{print} \\
+\addlinespace[2pt]
+{(54)} & \NT{IoFunc} $\rightarrow$ \T{scanf} & \A{IoFunc}{op} = \T{scanf} \\
+\addlinespace[2pt]
+{(55)} & \NT{ArgList} $\rightarrow$ \NT{Expr}\ \NT{ArgMore} & \A{ArgList}{args} = [$\langle$\A{Expr}{tipo}, \A{Expr}{tok}$\rangle$] $\mathbin{+\!\!+}$ \A{ArgMore}{args} \\
+\addlinespace[2pt]
+{(56)} & \NT{ArgList} $\rightarrow$ $\varepsilon$ & \A{ArgList}{args} = [\,] \\
+\addlinespace[2pt]
+{(57)} & \NT{ArgMore} $\rightarrow$ \T{,}\ \NT{Expr}\ \NT{ArgMore}$_{1}$ & \A{ArgMore}{args} = [$\langle$\A{Expr}{tipo}, \A{Expr}{tok}$\rangle$] $\mathbin{+\!\!+}$ \Ax{ArgMore}{1}{args} \\
+\addlinespace[2pt]
+{(58)} & \NT{ArgMore} $\rightarrow$ $\varepsilon$ & \A{ArgMore}{args} = [\,] \\
+\addlinespace[2pt]
+\midrule
+\multicolumn{3}{l}{\textbf{Asignación}} \\ \midrule
+{(59)} & \NT{Expr} $\rightarrow$ \NT{OrExpr}\ \NT{AssignTail} & \A{AssignTail}{her} = \A{OrExpr}{tipo};\quad \A{AssignTail}{izq} = \A{OrExpr}{tok} \newline \A{Expr}{tipo} = \A{AssignTail}{sin} \newline \A{Expr}{tok} = \kw{si} \A{AssignTail}{vacío} \kw{entonces} \A{OrExpr}{tok} \kw{si no} $\bot$ \\
+\addlinespace[2pt]
+{(60)} & \NT{AssignTail} $\rightarrow$ \NT{AssignOp}\ \NT{Expr} & \A{AssignTail}{vacío} = \textsf{falso};\quad $l$ = \fn{lín}(\NT{AssignOp}) \newline \kw{si} \A{AssignTail}{izq} no es un \T{id} \kw{entonces} \fn{error}($l$, el lado izquierdo no es una variable); \A{AssignTail}{sin} = \ty{err} \newline \kw{si no, si} \A{AssignTail}{her} $=$ \ty{err} \kw{entonces} \A{AssignTail}{sin} = \ty{err} \newline \kw{si no:} $v$ = \kw{si} \A{AssignOp}{op} $=$ \T{=} \kw{entonces} \A{Expr}{tipo} \kw{si no} \fn{opBinaria}($\circ$, \A{AssignTail}{her}, \A{Expr}{tipo}, $l$) \newline \hspace*{1.5em}\textit{($\circ$ es el operador sin el \T{=}: \T{+=} $\Rightarrow$ \T{+})} \newline \hspace*{1.5em}\kw{si} $v \neq$ \ty{err} \kw{entonces} \fn{asignable}(\A{AssignTail}{her}, $v$, $l$);\quad \A{AssignTail}{sin} = \kw{si} $v =$ \ty{err} \kw{entonces} \ty{err} \kw{si no} \A{AssignTail}{her} \\
+\addlinespace[2pt]
+{(61)} & \NT{AssignTail} $\rightarrow$ $\varepsilon$ & \A{AssignTail}{sin} = \A{AssignTail}{her};\quad \A{AssignTail}{vacío} = \textsf{verdadero} \\
+\addlinespace[2pt]
+{(62)} & \NT{AssignOp} $\rightarrow$ \T{=} & \A{AssignOp}{op} = \T{=} \\
+\addlinespace[2pt]
+{(63)} & \NT{AssignOp} $\rightarrow$ \T{+=} & \A{AssignOp}{op} = \T{+=} \\
+\addlinespace[2pt]
+{(64)} & \NT{AssignOp} $\rightarrow$ \T{-=} & \A{AssignOp}{op} = \T{-=} \\
+\addlinespace[2pt]
+{(65)} & \NT{AssignOp} $\rightarrow$ \T{*=} & \A{AssignOp}{op} = \T{*=} \\
+\addlinespace[2pt]
+{(66)} & \NT{AssignOp} $\rightarrow$ \T{/=} & \A{AssignOp}{op} = \T{/=} \\
+\addlinespace[2pt]
+{(67)} & \NT{AssignOp} $\rightarrow$ \T{\%=} & \A{AssignOp}{op} = \T{\%=} \\
+\addlinespace[2pt]
+\midrule
+\multicolumn{3}{l}{\textbf{Expresiones binarias}} \\ \midrule
+{(68)} & \NT{OrExpr} $\rightarrow$ \NT{AndExpr}\ \NT{OrTail} & \A{OrTail}{her} = \A{AndExpr}{tipo} \newline \A{OrExpr}{tipo} = \A{OrTail}{sin} \newline \A{OrExpr}{tok} = \kw{si} \A{OrTail}{vacío} \kw{entonces} \A{AndExpr}{tok} \kw{si no} $\bot$ \\
+\addlinespace[2pt]
+{(69)} & \NT{OrTail} $\rightarrow$ \T{||}\ \NT{AndExpr}\ \NT{OrTail}$_{1}$ & \Ax{OrTail}{1}{her} = \fn{opBinaria}(\T{||}, \A{OrTail}{her}, \A{AndExpr}{tipo}, \T{||}.\textsf{lín}) \newline \A{OrTail}{sin} = \Ax{OrTail}{1}{sin};\quad \A{OrTail}{vacío} = \textsf{falso} \\
+\addlinespace[2pt]
+{(70)} & \NT{OrTail} $\rightarrow$ $\varepsilon$ & \A{OrTail}{sin} = \A{OrTail}{her};\quad \A{OrTail}{vacío} = \textsf{verdadero} \\
+\addlinespace[2pt]
+{(71)} & \NT{AndExpr} $\rightarrow$ \NT{EqExpr}\ \NT{AndTail} & \A{AndTail}{her} = \A{EqExpr}{tipo} \newline \A{AndExpr}{tipo} = \A{AndTail}{sin} \newline \A{AndExpr}{tok} = \kw{si} \A{AndTail}{vacío} \kw{entonces} \A{EqExpr}{tok} \kw{si no} $\bot$ \\
+\addlinespace[2pt]
+{(72)} & \NT{AndTail} $\rightarrow$ \T{\&\&}\ \NT{EqExpr}\ \NT{AndTail}$_{1}$ & \Ax{AndTail}{1}{her} = \fn{opBinaria}(\T{\&\&}, \A{AndTail}{her}, \A{EqExpr}{tipo}, \T{\&\&}.\textsf{lín}) \newline \A{AndTail}{sin} = \Ax{AndTail}{1}{sin};\quad \A{AndTail}{vacío} = \textsf{falso} \\
+\addlinespace[2pt]
+{(73)} & \NT{AndTail} $\rightarrow$ $\varepsilon$ & \A{AndTail}{sin} = \A{AndTail}{her};\quad \A{AndTail}{vacío} = \textsf{verdadero} \\
+\addlinespace[2pt]
+{(74)} & \NT{EqExpr} $\rightarrow$ \NT{RelExpr}\ \NT{EqTail} & \A{EqTail}{her} = \A{RelExpr}{tipo} \newline \A{EqExpr}{tipo} = \A{EqTail}{sin} \newline \A{EqExpr}{tok} = \kw{si} \A{EqTail}{vacío} \kw{entonces} \A{RelExpr}{tok} \kw{si no} $\bot$ \\
+\addlinespace[2pt]
+{(75)} & \NT{EqTail} $\rightarrow$ \NT{EqOp}\ \NT{RelExpr}\ \NT{EqTail}$_{1}$ & \Ax{EqTail}{1}{her} = \fn{opBinaria}(\A{EqOp}{op}, \A{EqTail}{her}, \A{RelExpr}{tipo}, \fn{lín}(\NT{EqOp})) \newline \A{EqTail}{sin} = \Ax{EqTail}{1}{sin};\quad \A{EqTail}{vacío} = \textsf{falso} \\
+\addlinespace[2pt]
+{(76)} & \NT{EqTail} $\rightarrow$ $\varepsilon$ & \A{EqTail}{sin} = \A{EqTail}{her};\quad \A{EqTail}{vacío} = \textsf{verdadero} \\
+\addlinespace[2pt]
+{(77)} & \NT{EqOp} $\rightarrow$ \T{==} & \A{EqOp}{op} = \T{==} \\
+\addlinespace[2pt]
+{(78)} & \NT{EqOp} $\rightarrow$ \T{!=} & \A{EqOp}{op} = \T{!=} \\
+\addlinespace[2pt]
+{(79)} & \NT{RelExpr} $\rightarrow$ \NT{AddExpr}\ \NT{RelTail} & \A{RelTail}{her} = \A{AddExpr}{tipo} \newline \A{RelExpr}{tipo} = \A{RelTail}{sin} \newline \A{RelExpr}{tok} = \kw{si} \A{RelTail}{vacío} \kw{entonces} \A{AddExpr}{tok} \kw{si no} $\bot$ \\
+\addlinespace[2pt]
+{(80)} & \NT{RelTail} $\rightarrow$ \NT{RelOp}\ \NT{AddExpr}\ \NT{RelTail}$_{1}$ & \Ax{RelTail}{1}{her} = \fn{opBinaria}(\A{RelOp}{op}, \A{RelTail}{her}, \A{AddExpr}{tipo}, \fn{lín}(\NT{RelOp})) \newline \A{RelTail}{sin} = \Ax{RelTail}{1}{sin};\quad \A{RelTail}{vacío} = \textsf{falso} \\
+\addlinespace[2pt]
+{(81)} & \NT{RelTail} $\rightarrow$ $\varepsilon$ & \A{RelTail}{sin} = \A{RelTail}{her};\quad \A{RelTail}{vacío} = \textsf{verdadero} \\
+\addlinespace[2pt]
+{(82)} & \NT{RelOp} $\rightarrow$ \T{<} & \A{RelOp}{op} = \T{<} \\
+\addlinespace[2pt]
+{(83)} & \NT{RelOp} $\rightarrow$ \T{>} & \A{RelOp}{op} = \T{>} \\
+\addlinespace[2pt]
+{(84)} & \NT{RelOp} $\rightarrow$ \T{<=} & \A{RelOp}{op} = \T{<=} \\
+\addlinespace[2pt]
+{(85)} & \NT{RelOp} $\rightarrow$ \T{>=} & \A{RelOp}{op} = \T{>=} \\
+\addlinespace[2pt]
+{(86)} & \NT{AddExpr} $\rightarrow$ \NT{MulExpr}\ \NT{AddTail} & \A{AddTail}{her} = \A{MulExpr}{tipo} \newline \A{AddExpr}{tipo} = \A{AddTail}{sin} \newline \A{AddExpr}{tok} = \kw{si} \A{AddTail}{vacío} \kw{entonces} \A{MulExpr}{tok} \kw{si no} $\bot$ \\
+\addlinespace[2pt]
+{(87)} & \NT{AddTail} $\rightarrow$ \NT{AddOp}\ \NT{MulExpr}\ \NT{AddTail}$_{1}$ & \Ax{AddTail}{1}{her} = \fn{opBinaria}(\A{AddOp}{op}, \A{AddTail}{her}, \A{MulExpr}{tipo}, \fn{lín}(\NT{AddOp})) \newline \A{AddTail}{sin} = \Ax{AddTail}{1}{sin};\quad \A{AddTail}{vacío} = \textsf{falso} \\
+\addlinespace[2pt]
+{(88)} & \NT{AddTail} $\rightarrow$ $\varepsilon$ & \A{AddTail}{sin} = \A{AddTail}{her};\quad \A{AddTail}{vacío} = \textsf{verdadero} \\
+\addlinespace[2pt]
+{(89)} & \NT{AddOp} $\rightarrow$ \T{+} & \A{AddOp}{op} = \T{+} \\
+\addlinespace[2pt]
+{(90)} & \NT{AddOp} $\rightarrow$ \T{-} & \A{AddOp}{op} = \T{-} \\
+\addlinespace[2pt]
+{(91)} & \NT{MulExpr} $\rightarrow$ \NT{Unary}\ \NT{MulTail} & \A{MulTail}{her} = \A{Unary}{tipo} \newline \A{MulExpr}{tipo} = \A{MulTail}{sin} \newline \A{MulExpr}{tok} = \kw{si} \A{MulTail}{vacío} \kw{entonces} \A{Unary}{tok} \kw{si no} $\bot$ \\
+\addlinespace[2pt]
+{(92)} & \NT{MulTail} $\rightarrow$ \NT{MulOp}\ \NT{Unary}\ \NT{MulTail}$_{1}$ & \Ax{MulTail}{1}{her} = \fn{opBinaria}(\A{MulOp}{op}, \A{MulTail}{her}, \A{Unary}{tipo}, \fn{lín}(\NT{MulOp})) \newline \A{MulTail}{sin} = \Ax{MulTail}{1}{sin};\quad \A{MulTail}{vacío} = \textsf{falso} \\
+\addlinespace[2pt]
+{(93)} & \NT{MulTail} $\rightarrow$ $\varepsilon$ & \A{MulTail}{sin} = \A{MulTail}{her};\quad \A{MulTail}{vacío} = \textsf{verdadero} \\
+\addlinespace[2pt]
+{(94)} & \NT{MulOp} $\rightarrow$ \T{*} & \A{MulOp}{op} = \T{*} \\
+\addlinespace[2pt]
+{(95)} & \NT{MulOp} $\rightarrow$ \T{/} & \A{MulOp}{op} = \T{/} \\
+\addlinespace[2pt]
+{(96)} & \NT{MulOp} $\rightarrow$ \T{\%} & \A{MulOp}{op} = \T{\%} \\
+\addlinespace[2pt]
+\midrule
+\multicolumn{3}{l}{\textbf{Expresiones unarias y primarias}} \\ \midrule
+{(97)} & \NT{Unary} $\rightarrow$ \NT{UnaryOp}\ \NT{Unary}$_{1}$ & \A{Unary}{tipo} = \fn{opUnaria}(\A{UnaryOp}{op}, \Ax{Unary}{1}{tipo}, \Ax{Unary}{1}{tok}, \fn{lín}(\NT{UnaryOp})) \newline \A{Unary}{tok} = $\bot$ \\
+\addlinespace[2pt]
+{(98)} & \NT{Unary} $\rightarrow$ \NT{Primary} & \A{Unary}{tipo} = \A{Primary}{tipo};\quad \A{Unary}{tok} = \A{Primary}{tok} \\
+\addlinespace[2pt]
+{(99)} & \NT{UnaryOp} $\rightarrow$ \T{-} & \A{UnaryOp}{op} = \T{-} \\
+\addlinespace[2pt]
+{(100)} & \NT{UnaryOp} $\rightarrow$ \T{+} & \A{UnaryOp}{op} = \T{+} \\
+\addlinespace[2pt]
+{(101)} & \NT{UnaryOp} $\rightarrow$ \T{!} & \A{UnaryOp}{op} = \T{!} \\
+\addlinespace[2pt]
+{(102)} & \NT{UnaryOp} $\rightarrow$ \T{\&} & \A{UnaryOp}{op} = \T{\&} \\
+\addlinespace[2pt]
+{(103)} & \NT{Primary} $\rightarrow$ \T{id}\ \NT{CallTail} & \kw{si} \A{CallTail}{vacío} \kw{entonces} \A{Primary}{tipo} = \fn{usarVariable}(\T{id});\quad \A{Primary}{tok} = \T{id} \newline \kw{si no} \A{Primary}{tipo} = \fn{llamada}(\T{id}, \A{CallTail}{args});\quad \A{Primary}{tok} = $\bot$ \\
+\addlinespace[2pt]
+{(104)} & \NT{Primary} $\rightarrow$ \T{int\_const} & \A{Primary}{tipo} = \ty{int};\quad \A{Primary}{tok} = \T{int\_const} \\
+\addlinespace[2pt]
+{(105)} & \NT{Primary} $\rightarrow$ \T{float\_const} & \A{Primary}{tipo} = \kw{si} el lexema termina en \T{f} o \T{F} \kw{entonces} \ty{float} \kw{si no} \ty{double} \newline \A{Primary}{tok} = \T{float\_const} \\
+\addlinespace[2pt]
+{(106)} & \NT{Primary} $\rightarrow$ \T{char\_const} & \A{Primary}{tipo} = \ty{char};\quad \A{Primary}{tok} = \T{char\_const} \\
+\addlinespace[2pt]
+{(107)} & \NT{Primary} $\rightarrow$ \T{string\_lit} & \A{Primary}{tipo} = \ty{char*};\quad \A{Primary}{tok} = \T{string\_lit} \\
+\addlinespace[2pt]
+{(108)} & \NT{Primary} $\rightarrow$ \T{(}\ \NT{Expr}\ \T{)} & \A{Primary}{tipo} = \A{Expr}{tipo};\quad \A{Primary}{tok} = $\bot$ \\
+\addlinespace[2pt]
+{(109)} & \NT{CallTail} $\rightarrow$ \T{(}\ \NT{ArgList}\ \T{)} & \A{CallTail}{args} = \A{ArgList}{args};\quad \A{CallTail}{vacío} = \textsf{falso} \\
+\addlinespace[2pt]
+{(110)} & \NT{CallTail} $\rightarrow$ $\varepsilon$ & \A{CallTail}{args} = [\,];\quad \A{CallTail}{vacío} = \textsf{verdadero} \\
+\addlinespace[2pt]
+\midrule
+\end{longtable}
+}
+
+\subsection{Resumen de las reglas semánticas}
+
+\begin{longtable}{@{}l >{\raggedright\arraybackslash}p{4.2cm} >{\raggedright\arraybackslash}p{6.4cm} >{\raggedright\arraybackslash}p{4.0cm}@{}}
+\toprule
+\textbf{Regla} & \textbf{Producciones} & \textbf{Qué verifica} & \textbf{Ejemplo que la viola} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Regla} & \textbf{Producciones} & \textbf{Qué verifica} & \textbf{Ejemplo que la viola} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+R1 & (6), (21), (22) & Ningún nombre se declara dos veces en el mismo ámbito. & \texttt{int x; int x;} \\
+R2 & (21), (22), (6) & Ninguna variable ni parámetro es \ty{void}. & \texttt{void v;} \\
+R3 & (103) & Toda variable usada está declarada en un ámbito visible. & \texttt{y = 1;} \\
+R4 & (21), (50), (60), (103) & El valor es compatible con el destino. & \texttt{int n = "hola";} \\
+R5 & (60) & El lado izquierdo de una asignación es una variable. & \texttt{5 = n;} \\
+R6 & (87), (92) & \T{+ - * /} con operandos numéricos. & \texttt{"a" * 2} \\
+R7 & (92) & \T{\%} con operandos enteros. & \texttt{2.5 \% 2} \\
+R8 & (69), (72), (75), (80) & Operandos lógicos escalares y operandos comparables. & \texttt{"a" < 3} \\
+R9 & (97) & Operandos válidos para \T{- + ! \&}; \T{\&} solo sobre variables. & \texttt{\&(a + 1)} \\
+R10 & (103) & Llamadas a funciones declaradas, con el número y tipo de argumentos correctos. & \texttt{sum(1)} \\
+R11 & (40), (43), (44), (45) & Condiciones escalares. & \texttt{while (p())}, \texttt{p} \ty{void} \\
+R12 & (36), (37) & \T{break} y \T{continue} solo dentro de ciclos. & \texttt{break;} \\
+R13 & (50) & \T{return} dentro de función y coherente con su tipo. & \texttt{return 1;} en \ty{void} \\
+R14 & (51) & Formato de \T{printf}/\T{scanf}: literal, cantidad y tipos. & \texttt{printf("\%d", 2.5);} \\
+R15 & (51) & \T{print} con argumentos no \ty{void}. & \texttt{print();} \\
+W1 & (21), (50), (60), (103) & Aviso (no error) al pasar de flotante a entero. & \texttt{int t = 3.7;} \\
+\end{longtable}
+
+\subsection{Ejemplo: árbol anotado}
+
+Para la expresión \texttt{a + 2.5} con \texttt{a} declarada como \ty{int}, el atributo heredado \textsf{her} lleva el tipo del operando izquierdo hacia la cola. El sintetizado \textsf{sin} sube el resultado de \fn{opBinaria}(\T{+}, \ty{int}, \ty{double}) $=$ \ty{double}:
+
+\begin{center}
+\begin{forest}
+for tree={draw, rounded corners, align=center, font=\small, s sep=6mm, l sep=6mm, edge={->, >=latex}}
+[{\NT{AddExpr}\\ \textsf{tipo} = \ty{double}}
+  [{\NT{MulExpr}\\ \textsf{tipo} = \ty{int}}
+    [{\T{id}: \texttt{a}\\ \fn{usarVariable} $\Rightarrow$ \ty{int}}]
+  ]
+  [{\NT{AddTail}\\ \textsf{her} = \ty{int}\\ \textsf{sin} = \ty{double}}
+    [{\NT{AddOp}\\ \textsf{op} = \T{+}}]
+    [{\NT{MulExpr}\\ \textsf{tipo} = \ty{double}}
+      [{\T{float\_const}: \texttt{2.5}}]
+    ]
+    [{\NT{AddTail}$_1$\\ \textsf{her} = \ty{double}\\ \textsf{sin} = \ty{double}}
+      [$\varepsilon$]
+    ]
+  ]
+]
+\end{forest}
+\end{center}
+
+Por simplicidad, el árbol omite los niveles intermedios $\NT{MulExpr} \Rightarrow \NT{Unary} \Rightarrow \NT{Primary}$ y las colas vacías, que solo copian el tipo hacia arriba, el orden en que se calculan los atributos es: \A{MulExpr}{tipo} (izquierdo), \A{AddTail}{her}, \A{MulExpr}{tipo} (derecho), \Ax{AddTail}{1}{her}, \Ax{AddTail}{1}{sin}, \A{AddTail}{sin} y \A{AddExpr}{tipo}, es un recorrido en profundidad de izquierda a derecha, como corresponde a una SDD L-atribuida.
+
+\end{document}
