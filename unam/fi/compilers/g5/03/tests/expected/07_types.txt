@@ -1,0 +1,7 @@
+Parsing Success!
+SDT error...
+  error in line 1: initialization of 'n': incompatible types, cannot convert char* to int
+  error in line 3: operator '%' needs integer operands, got float and int
+  error in line 4: printf format has 2 specifier(s) but 1 argument(s) were given
+  error in line 4: '%d' expects int but argument 2 of printf has type float
+  error in line 5: left side of '=' is not a variable
